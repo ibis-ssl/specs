@@ -32,8 +32,7 @@ byte 1..64: RobotCommandSerializedV2（64 バイト）
 
 GUI_Qt の送信実装（Qt Communication Tester）もこの 65 バイト形式で mode 3 を送る。mode 4 の位置指令を送る側は、同じ外枠で下記の mode 4 フィールドを設定する。
 
-> [!WARNING]
-> crane の送信器はまだこの形式に対応していない。11 台分 715 B を 1 つのデータグラムにまとめてブロードキャストしている。[crane との連携](../pc/crane_integration.md#既知の不整合) を参照。
+crane の送信器もこの 65 バイト形式で、指令を出す機体ごとに個別に送る（[crane との連携](../pc/crane_integration.md#送信crane_sender)）。
 
 ## RobotCommandSerializedV2（64 バイト）
 
