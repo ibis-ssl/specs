@@ -1,8 +1,10 @@
 # 制御パケット
 
-AI（crane）から CM4 を経由して Main（G474）へ送る指令の形式と、各フィールドの意味をまとめる。
+AI（crane）から CM4 を経由して Main へ送る指令の形式と、各フィールドの意味をまとめる。コマンドの定義は Orion（4 輪オムニホイール）と Atlas（4 輪ステアリング）で共通である。
 
-経路は `crane →(Wi-Fi UDP 65 B)→ CM4 →(UART 72 B)→ G474`。どちらの区間でも中身は 64 バイトの `RobotCommandSerializedV2` である。UART 1 Mbps の帯域がパケットサイズの最も厳しい制約になる。
+経路は `crane →(Wi-Fi UDP 65 B)→ CM4 →(UART 72 B)→ Main`。どちらの区間でも中身は 64 バイトの `RobotCommandSerializedV2` である。Orion の接続では UART 1 Mbps の帯域がパケットサイズの最も厳しい制約になる。
+
+以下の G474 におけるフィールドの利用、受信処理、接続判定、フィードバックの説明は、`G474_Orion_main` で確認した Orion の実装を指す。UART の物理設定と `FWVR` / `FWUP` の受信処理も Orion の記録で、Atlas の STM 側の実装詳細は未記載である。
 
 ## 正本と一致検査
 
@@ -93,6 +95,8 @@ range 付きの 2 バイトのフィールドをゼロ埋めすると、`0.0` �
 
 ## 各フィールドの使われ方
 
+ここでは共通のフィールドに対する CM4 の処理と、Orion の G474 での利用方法を示す。Atlas 側の利用方法は機種別仕様で扱う。
+
 - **`VISION_GLOBAL_*`**：遅延が大きく不安定なので、参照するときは注意する。旋回中は特に角度が当てにならない。G474 はこの値をオドメトリと融合して位置を推定する。CM4 は実機ではこの値を書き換えずに素通しする（CM4 の推定値を書き戻すと自己帰還になるため）。
 - **`IS_VISION_AVAILABLE`**：見えていない状態が続いたら、暴走を防ぐためにロボット側でも走行出力を止める。一瞬見失うだけなら、ロボット側のオドメトリを使って安全を保ちつつ動ける。停止条件は [停止判定](safety_stop.md#g474-の走行停止条件) を参照。
 - **`ACCELERATION_LIMIT`**：機体に期待する並進加速度の上限。機体側がこれより高い加速度を使うことは許される。G474 は 3.0 未満か 20 を超える値を受けると 3.0 を使う。
@@ -113,12 +117,12 @@ CM4 では上流（位置制御器）の解釈が先に効く。`linear_velocity
 
 | 値 | 名前 | ARGS（24..31）の意味 | 送信元 → 受信先 |
 |---|---|---|---|
-| `3` | `POLAR_VELOCITY_TARGET_MODE` | `target_global_velocity_r`, `target_global_velocity_theta` | CM4 → G474 / cm4_sim → simulator-cli / GUI_Qt → CM4 |
+| `3` | `POLAR_VELOCITY_TARGET_MODE` | `target_global_velocity_r`, `target_global_velocity_theta` | CM4 → Main / cm4_sim → simulator-cli / GUI_Qt → CM4 |
 | `4` | `POSITION_TARGET_WITH_TERMINAL_VELOCITY_MODE` | `terminal_velocity_x`, `terminal_velocity_y` | crane → CM4 / crane → cm4_sim |
 
 > **`CONTROL_MODE_ARGS` は union である。`CONTROL_MODE` を見ずに復号してはいけない。** mode 4 のパケットを mode 3 として復号すると、`terminal_velocity_x/y` が `r/theta` として読まれ、警告もなく暴走する。
 
-G474 が実装しているのは mode 3 だけである。mode 4 は CM4 が受け取って mode 3 に変換する。G474 へ素通ししてはいけない。
+CM4 は mode 4 を受け取って mode 3 に変換し、Main へ送る。Orion の G474 が実装しているのは mode 3 だけである。mode 4 を G474 へ素通ししてはいけない。
 
 crane の ROS メッセージ（`crane_msgs/msg/RobotCommand.msg`）の制御モード番号は、ここに書いた値とは別物である。
 
@@ -138,9 +142,9 @@ crane の ROS メッセージ（`crane_msgs/msg/RobotCommand.msg`）の制御モ
 
 目標位置は mode_args ではなく固定フィールドの `TARGET_GLOBAL_POS_X/Y`（32..35）に入る。到達時の速度上限は `TERMINAL_VELOCITY`（36..37）に入る。
 
-## UART フレーム（CM4 → G474、72 バイト）
+## UART フレーム（CM4 → Main、72 バイト）
 
-CM4 の `ai_cmd_v2.out` が `/dev/serial0` から 1 Mbps 8N1 で送る。
+以下の CM4 送信コマンドの構成は Orion と Atlas で共通である。`ai_cmd_v2.out` が `/dev/serial0` から 1 Mbps 8N1 で送る接続設定は Orion で確認したものを示す。
 
 | byte | 内容 |
 |---|---|
@@ -154,7 +158,7 @@ CM4 の `ai_cmd_v2.out` が `/dev/serial0` から 1 Mbps 8N1 で送る。
 
 - 1 フレームの送信には 72 バイト × 10 bit / 1 Mbps = 720 µs かかる。送信レートを上げると UART の占有率がそのまま上がる（100 Hz で 7.2%、500 Hz で 36%）。
 - カメラ値の出どころと、途絶したときの扱いは [ブリッジ](../cm4/bridge.md#ローカルカメラ情報の挿入) を参照。
-- byte 1..4 が `FWVR` または `FWUP` のフレームは、制御指令ではなくファームウェアのバージョン照会・更新要求として扱われる（[MCU ファームウェア更新](firmware_update.md)）。
+- Orion では、byte 1..4 が `FWVR` または `FWUP` のフレームは、制御指令ではなくファームウェアのバージョン照会・更新要求として扱われる（[MCU ファームウェア更新](firmware_update.md)）。
 
 ## CHECK_COUNTER
 

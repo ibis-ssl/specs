@@ -2,6 +2,8 @@
 
 ホスト PC で crane とシミュレータ（framework の `simulator-cli`）をつなぐときの構成をまとめる。CM4 の位置制御は `cm4_sim.out` が担当し、実機と同じソース（`cm4/control/position_controller.cpp`）をリンクする（[位置制御](../cm4/position_control.md)）。`simulator-cli` は G474 とロボットの物理を担当し、位置制御は行わない。
 
+この文書の実機との比較は Orion（4 輪オムニホイール）を対象とする。共通の CM4 送信コマンドを使うことと、Atlas（4 輪ステアリング）の操舵・車輪制御・物理モデルを再現することは別であり、Atlas のシミュレーション対応は未記載である。
+
 ```text
 crane --UDP:12345 65B mode4--> cm4_sim.out --UDP:12346 715B mode3--> simulator-cli
                                     ^                                    |

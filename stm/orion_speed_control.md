@@ -1,6 +1,6 @@
-# 速度制御（MAIN_MODE_FULL_AI_CONTROL）
+# Orion：速度制御（MAIN_MODE_FULL_AI_CONTROL）
 
-`MAIN_MODE_FULL_AI_CONTROL` のとき、`Core/Src/state_func.c` の `maintaskRun()` から呼ばれる速度制御系をまとめる。主制御は TIM7 割り込みの中で 500 Hz（2 ms 周期）で実行する。
+Orion（4輪オムニホイール）の `MAIN_MODE_FULL_AI_CONTROL` のとき、`Core/Src/state_func.c` の `maintaskRun()` から呼ばれる速度制御系をまとめる。主制御は TIM7 割り込みの中で 500 Hz（2 ms 周期）で実行する。CM4 から受け取るコマンド定義は Atlas と共通だが、以下のオムニ逆運動学、補正値、ゲイン、各輪出力は Orion の実装である。機種別の入口は [STM 概要](overview.md) を参照。
 
 ## 速度指令から車輪出力までの制御ブロック図
 
@@ -179,7 +179,7 @@ motor_voltage =
 | `current_target_rps` | 目標 rps のフィードフォワード |
 
 `target.omni_angle_kp` と `target.omni_angle_kd` の初期値はそれぞれ 25 と 2（`main.c` の `target` の初期化子）。
-LPUART1 のデバッグ入力で、`q/a` で kp を、`w/s` で kd を 1.1 倍ずつ調整できる（[STM 概要](overview.md#デバッグ-uartlpuart12-mbps)）。
+LPUART1 のデバッグ入力で、`q/a` で kp を、`w/s` で kd を 1.1 倍ずつ調整できる（[Orion：STM 概要](orion_overview.md#デバッグ-uartlpuart12-mbps)）。
 
 最終的な `output.motor_voltage[i]` は `omniMoveIndiv()` で `OMNI_OUTPUT_VOLTAGE_LIMIT = 60.0` に制限され、CAN 経由で各 BLDC 基板へ送られます。
 
@@ -196,7 +196,7 @@ LPUART1 のデバッグ入力で、`q/a` で kp を、`w/s` で kd を 1.1 倍�
 - 実際の車輪速度は条件に使わない。機体の回転は IMU の yaw 角速度で判定し、個々のエンコーダー速度のノイズで補正の機会を失わないようにする。
 - 停止時に 4 輪出力を 0 にする整定状態は使わない。条件が成り立っている間は、回転角度誤差を時定数 50 ms の一次遅れで減衰させる。1 制御周期の補正量は最大 `0.001 rad`（`0.5 rad/s`）に制限し、残差が `0.0005 rad` 未満になったときだけ残りを同期する。
 - 条件が外れたら、成立カウントと `angle_clear_active` をすぐ解除し、その周期の補正量を 0 にする。再び 2 周期続けて成り立てば、その時点の残差から補正を再開する。
-- `DRIVE_LOG` での見え方は [診断機能](diagnostics.md#直進加速診断ログdrive_log) を参照。
+- `DRIVE_LOG` での見え方は [診断機能](orion_diagnostics.md#直進加速診断ログdrive_log) を参照。
 
 ## 停止条件
 

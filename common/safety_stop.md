@@ -2,6 +2,8 @@
 
 どこが落ちたら誰がどう止めるかを、各層にまたがってまとめる。タイムアウトの値はこの文書にだけ書く。
 
+CM4 が送る停止コマンドの定義は Orion と Atlas で共通である。この文書の G474 の通信判定、走行停止条件、駆動出力が切れるまでの時間と惰走の説明は、Orion の `G474_Orion_main` で確認した実装に基づく。Atlas の STM 側の停止条件、応答時間、車輪・操舵の停止動作は未記載である。
+
 ## 何が落ちたら誰が止めるか
 
 | 何が落ちたか | 止めるのは誰か | 時間の目安 | 止まり方 |
@@ -39,7 +41,7 @@ sys->stop_flag || ai_cmd->stop_emergency || !ai_cmd->is_vision_available
 - `stop_emergency`：指令の停止フラグ。AI 接続がタイムアウトしたときも `resetAiCmdData()` によって true になる。
 - ビジョン：`is_vision_available` が偽、または最後に捉えてから 500 ms を超えたとき。500 ms は調整パラメータではなくファームウェアの定数。
 
-`sys->stop_flag` が立っている周期だけ `clearSpeedContrlValue()` が呼ばれ、速度制御の内部状態を実際のオドメトリ速度に合わせる。停止指令やビジョン喪失だけで出力が 0 になった周期には呼ばれない（[速度制御](../stm/speed_control.md#停止条件)）。
+`sys->stop_flag` が立っている周期だけ `clearSpeedContrlValue()` が呼ばれ、速度制御の内部状態を実際のオドメトリ速度に合わせる。停止指令やビジョン喪失だけで出力が 0 になった周期には呼ばれない（[Orion 速度制御](../stm/orion_speed_control.md#停止条件)）。
 
 エラーが起きたときはメインモードを `MAIN_MODE_ERROR` にし、モータを止め、CAN でエラーを送り、手動で電源をリセットするまで待つ。
 

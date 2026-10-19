@@ -2,12 +2,14 @@
 
 Main（G474）が CM4 へ送る 128 バイトの状態パケット（テレメトリ）の形式と、それを受け取る側をまとめる。
 
+この文書は Orion の `G474_Orion_main` で確認したフィードバックの仕様である。CM4 から送るコマンドの定義は Orion と Atlas で共通だが、ここに示す送信周期、パケットの内容、各センサやモータとの対応は Orion の記録で、Atlas のフィードバックは未記載である。
+
 ## 送信元と経路
 
 送信元は G474 の `Core/Src/ai_comm.c` にある `sendRobotInfo()`。USART2（1 Mbps）から DMA で送る。
 
 - 送信周期は 125 Hz（`ROBOT_INFO_CYCLE = 125`）。500 Hz の制御周期の中で間引いて送る。
-- デバッグ UART で `t` を送ると送信を一時停止・再開でき、FW ゲートウェイの動作中は送信しない（[CM4 との UART](../stm/uart_cm4.md)）。
+- デバッグ UART で `t` を送ると送信を一時停止・再開でき、FW ゲートウェイの動作中は送信しない（[Orion CM4 との UART 実装](../stm/orion_uart_cm4.md)）。
 
 ```text
 G474 sendRobotInfo()

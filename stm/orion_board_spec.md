@@ -1,6 +1,6 @@
-# ハードウェア仕様（Main 基板）
+# Orion：ハードウェア仕様（Main 基板）
 
-`G474_Orion_main.ioc` と `Core` 配下のソースコードから読み取れるハードウェア仕様をまとめる。回路図は確認していないので、ソース上で信号名のない GPIO は「用途未確定」として扱う。
+Orion（4輪オムニホイール）の `G474_Orion_main.ioc` と `Core` 配下のソースコードから読み取れるハードウェア仕様をまとめる。Atlas の基板仕様は含まない。回路図は確認していないので、ソース上で信号名のない GPIO は「用途未確定」として扱う。機種別の入口は [STM 概要](overview.md) を参照。
 
 ## MCU / クロック
 
@@ -113,9 +113,9 @@
 - Baudrate: 1,000,000 bps、8N1
 - RX: FIFO を有効にし、RXNE/RXFNE 割り込みで FIFO を読み切る。生成コード（`MX_USART2_UART_Init()`）は FIFO を無効にするが、同じ関数の USER CODE で再び有効にしている（`.ioc` には FIFO の設定はない）。
 - TX: DMA1_Channel8 normal
-- 受信フレーム: 72 byte（`RX_BUF_SIZE_CM4`）。形式は [制御パケット](../common/control_packet.md#uart-フレームcm4--g47472-バイト) を参照。
+- 受信フレーム: 72 byte（`RX_BUF_SIZE_CM4`）。形式は [制御パケット](../common/control_packet.md#uart-フレームcm4--main72-バイト) を参照。
 - 送信フレーム: 128 byte。形式は [フィードバックパケット](../common/feedback_packet.md) を参照。
-- 受信処理と診断の詳細は [CM4 との UART](uart_cm4.md) を参照。
+- 受信・送信処理の詳細は [Orion：CM4 との UART](orion_uart_cm4.md) を参照。
 
 
 ### FDCAN バスの使い分け

@@ -1,5 +1,7 @@
 # MCU ファームウェア更新
 
+この文書は Orion の Main と CAN ノードの更新手順・実装を記録する。CM4 から送る走行コマンドの共通定義とは別に、更新プロトコル、Flash 配置、ノード構成、給電条件は機種ごとに確認する。Atlas の更新仕様は未記載である。
+
 CM4 から、UART でつながった Main（STM32G474）を更新する。CAN 上の Sub、左右 BLDC、Power（STM32F303）は、Main をゲートウェイにして更新する。Main は A/B の 2 スロットを持ち、CAN ノードはアプリ領域が 1 つだけである。転送したデータと書込み結果は CRC32C で確認する。
 
 ## 対象とノード
@@ -47,7 +49,7 @@ python3 cm4/firmware/fw_version_reader.py --port /dev/serial0 \
 
 ### 更新モードへの切り替え
 
-CM4 は通常の 72 B UART フレーム（[制御パケット](control_packet.md#uart-フレームcm4--g47472-バイト)）の byte 1..4 に `FWUP` を入れ、byte 5 のコマンドで Main に指示する。
+CM4 は通常の 72 B UART フレーム（[制御パケット](control_packet.md#uart-フレームcm4--main72-バイト)）の byte 1..4 に `FWUP` を入れ、byte 5 のコマンドで Main に指示する。
 
 | byte 5 | 動作 |
 |---|---|
@@ -61,7 +63,7 @@ CM4 は通常の 72 B UART フレーム（[制御パケット](control_packet.md
 
 ### Main の A/B 更新
 
-`main_ab_updater.py` は、Main bootloader の OFW1 UART（12 バイトのヘッダ、chunk 896 バイト）で稼働していないスロットへ書き込む。書き終えたスロットは PENDING として起動し、CM4 が CONFIRM を送ると CONFIRMED になる。PENDING のスロットの起動が 3 回確定しなかった場合、bootloader はもう一方の CONFIRMED のスロットへ戻す。Flash 配置と起動判定は [ブートローダー](../stm/bootloader.md) を参照。
+`main_ab_updater.py` は、Main bootloader の OFW1 UART（12 バイトのヘッダ、chunk 896 バイト）で稼働していないスロットへ書き込む。書き終えたスロットは PENDING として起動し、CM4 が CONFIRM を送ると CONFIRMED になる。PENDING のスロットの起動が 3 回確定しなかった場合、bootloader はもう一方の CONFIRMED のスロットへ戻す。Flash 配置と起動判定は [Orion ブートローダー](../stm/orion_bootloader.md) を参照。
 
 ### CAN ノードの更新（Main ゲートウェイ）
 
@@ -82,4 +84,4 @@ Main の各スロットのイメージ先頭 `+0x400` には、`FWVR` magic と 
 2. Main は自身の両スロットを直接読み、CAN ID `0x611` で Sub（CAN1 node 4）、右 BLDC（CAN1 node 16）、左 BLDC（CAN2 node 17）、Power（node 100、両バス）に照会する。
 3. 応答のないノードにだけ 40 ms 間隔で再照会し、250 ms 後に 6 対象の build ID と image CRC32C を 60 バイトの応答にまとめて CM4 へ返す。
 
-`fw_version_reader.py` は期待するバイナリを指定すると、実機の内容と比べた結果も表示する。Main のビルドスクリプトは、ビルドごとに Git hash と dirty 状態を `Script/Logs/Build/` に JSON で保存する（[STM 概要](../stm/overview.md#ビルドと書込み)）。
+`fw_version_reader.py` は期待するバイナリを指定すると、実機の内容と比べた結果も表示する。Main のビルドスクリプトは、ビルドごとに Git hash と dirty 状態を `Script/Logs/Build/` に JSON で保存する（[Orion 概要](../stm/orion_overview.md#ビルドと書込み)）。

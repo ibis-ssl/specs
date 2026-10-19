@@ -1,6 +1,6 @@
-# ブートローダー（Main 基板）
+# Orion：ブートローダー（Main 基板）
 
-Main 基板（STM32G474）は、User Flash の先頭に基板専用のアプリケーションブートローダー（`Bootloader/`）を置き、通常アプリを A/B の 2 スロットで持つ。CM4 からの UART 更新、PENDING と CONFIRM、起動に失敗したときのロールバックを担当する。更新手順の全体は [MCU ファームウェア更新](../common/firmware_update.md) を参照。
+Orion（4輪オムニホイール）の Main 基板（STM32G474）は、User Flash の先頭に基板専用のアプリケーションブートローダー（`Bootloader/`）を置き、通常アプリを A/B の 2 スロットで持つ。CM4 からの UART 更新、PENDING と CONFIRM、起動に失敗したときのロールバックを担当する。以下の Flash 配置、安全 IO、ビルド・導入手順は Orion の実装である。更新手順の全体は [MCU ファームウェア更新](../common/firmware_update.md)、機種別の入口は [STM 概要](overview.md) を参照。
 
 STM32 の System Memory bootloader、BOOT0 による ROM boot、ハードウェアのバンクスワップ（`BFB2`）は使わない。
 
@@ -91,7 +91,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\Script\build_bootloader.ps
 powershell -NoProfile -ExecutionPolicy Bypass -File .\Script\build_slot_a.ps1 -Configuration Debug -Rebuild
 ```
 
-`build_slot_a.ps1` は Slot A のベクタと領域を検査し、`.bin` から CRC32C 付きの metadata を生成する。A/B 両方を作るときは `build_slot_b.ps1` を使う（[STM 概要](overview.md#ビルドと書込み)）。
+`build_slot_a.ps1` は Slot A のベクタと領域を検査し、`.bin` から CRC32C 付きの metadata を生成する。A/B 両方を作るときは `build_slot_b.ps1` を使う（[Orion：STM 概要](orion_overview.md#ビルドと書込み)）。
 
 ## 初回導入
 

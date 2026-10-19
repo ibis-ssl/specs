@@ -2,6 +2,8 @@
 
 crane は位置指令（mode 4）を送り、CM4 が位置制御ループを閉じて速度指令（mode 3）を G474 へ渡す。制御則と安全停止の判定は `cm4/control/position_controller.h` / `.cpp` にある。transport に依存しない作りで、実機のブリッジ（`ai_cmd_v2.out`）とシミュレータ用の `cm4_sim.out` が**同じソースを**リンクする。コピーを作らないことが、実機とシミュレータの挙動が一致する唯一の保証である。
 
+CM4 が生成する速度コマンドの定義は Orion と Atlas で共通である。以下の G474 feedback を入力にする構成と、STM 側の定数に合わせた設定は Orion との接続で確認した内容を示す。Atlas のフィードバックと STM 側の制御動作は未記載である。
+
 ```text
 実機: crane --UDP 65B mode4--> ai_cmd_v2.out [位置ループ] --UART mode3--> G474
                                     ^
