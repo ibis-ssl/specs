@@ -117,19 +117,6 @@
 - 送信フレーム: 128 byte。形式は [フィードバックパケット](../common/feedback_packet.md) を参照。
 - 受信処理と診断の詳細は [CM4 との UART](uart_cm4.md) を参照。
 
-## FDCAN
-
-- FDCAN1: PA11 RX / PA12 TX
-- FDCAN2: PB12 RX / PB13 TX
-- フレーム形式: Classic CAN
-- ID: Standard ID
-- モード: Normal
-- Auto retransmission: Enable
-- Bit rate: 約 1 Mbps
-- Prescaler: 10
-- Nominal TimeSeg1 / TimeSeg2: 14 / 2
-- フィルタ: mask 0x000 / 0x000 で全標準 ID を FIFO0 に受信
-- TX FIFO が満杯の場合は、ソフトウェアのリングバッファ（バスごとに最大 20 frame）へ退避する（[CAN 送信 FIFO](#can-送信-fifo)）。
 
 ### FDCAN バスの使い分け
 
@@ -184,33 +171,6 @@
 - Period: 2000
 - 実効周期: 2 ms（500 Hz）
 - 割り込み優先度: 8
-
-### TIM5 CH2
-
-- 用途: ブザー PWM
-- Pin: PC12
-- Prescaler: 170
-- Period: 500
-- 通常 duty: compare 250 または 0
-- `actuator_buzzer_frq_on()` では prescaler を周波数に応じて変更する。
-
-## NVIC 優先度
-
-| 割り込み | 優先度 |
-| --- | --- |
-| USART2_IRQn | 1 |
-| FDCAN1_IT0_IRQn | 3 |
-| FDCAN1_IT1_IRQn | 4 |
-| FDCAN2_IT0_IRQn | 6 |
-| FDCAN2_IT1_IRQn | 7 |
-| TIM7_DAC_IRQn | 8 |
-| DMA1_Channel3_IRQn | 9 |
-| DMA1_Channel4_IRQn | 10 |
-| DMA1_Channel5_IRQn | 11 |
-| LPUART1_IRQn | 13 |
-| DMA1_Channel6_IRQn | 14 |
-| DMA1_Channel7_IRQn | 15 |
-| DMA1_Channel8_IRQn | 0（USART2 TX） |
 
 ## 起動時のハードウェア制御
 
