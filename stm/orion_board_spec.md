@@ -1,6 +1,6 @@
 # Orion：Main 基板の対外仕様
 
-Orion（4輪オムニホイール）の Main 基板について、上位との接続、制御周期、起動と保護に関わる仕様をまとめる。対象ファームウェアは `G474_Orion_main`。機種別の入口は [STM 概要](overview.md)を参照。
+Orion（4輪オムニホイール）の Main 基板について、上位との接続、制御周期、起動と保護に関わる仕様をまとめる。対象ファームウェアは `G474_Orion_main`。機種別の入口は [STM 概要](../README.md#orionの対外仕様)を参照。
 
 ## 対象と役割
 
@@ -12,7 +12,7 @@ Orion（4輪オムニホイール）の Main 基板について、上位との�
 
 - 主制御周期は 2 ms（500 Hz、`MAIN_LOOP_CYCLE = 500`）。
 - ロボット情報の送信周期は [フィードバックパケット](../common/feedback_packet.md#送信元と経路)を参照。
-- 制御方法は [速度制御](orion_speed_control.md)、停止条件とタイムアウトは [停止判定](../common/safety_stop.md)を参照。
+- 制御方法は [速度制御](https://github.com/ibis-ssl/G474_Orion_main/blob/main/doc/hw_control.md)、停止条件とタイムアウトは [停止判定](../common/safety_stop.md)を参照。
 
 ## 外部通信
 
@@ -26,14 +26,18 @@ Orion（4輪オムニホイール）の Main 基板について、上位との�
 ### デバッグ UART
 
 - 通信設定: 2,000,000 bps、8N1。
-- 起動ログ、状態表示、デバッグ表示の切替、ゲイン調整に使う。操作方法は [Orion 概要](orion_overview.md#デバッグ-uartlpuart12-mbps)を参照。
+- 起動ログ、状態表示、デバッグ表示の切替、ゲイン調整に使う。操作方法は[Main開発文書](https://github.com/ibis-ssl/G474_Orion_main/blob/main/doc/overview.md)を参照。
+
+### CANノードとの通信
+
+バスの設定・論理割当・送受信IDは[MainとCANノードの通信](../common/orion_can.md)を参照する。
 
 ## 起動と校正
 
 - 起動時に IMU の yaw ジャイロをキャリブレーションし、角度をクリアする。姿勢角には yaw を利用する。
 - アクチュエータを停止状態に設定し、キッカー充電と保護条件を設定する。
 - 1 秒間の停止要求を設定して主制御を開始する。初期化中の停止条件は [停止判定](../common/safety_stop.md#g474-の走行停止条件)を参照。
-- モードスイッチと LED の表示は [Orion 概要](orion_overview.md)を参照。
+- モードスイッチと LED の表示は [Orion 概要](https://github.com/ibis-ssl/G474_Orion_main/blob/main/doc/overview.md)を参照。
 
 ## 保護条件
 
