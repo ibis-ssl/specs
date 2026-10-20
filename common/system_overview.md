@@ -1,6 +1,6 @@
 # システム構成
 
-Orion（4 輪オムニホイール）と Atlas（4 輪ステアリング）の共通の制御経路と、Orion で確認したハードウェア構成をまとめる。CM4 から送るコマンドの定義までは共通で、Main のハードウェア、車輪への指令変換、フィードバック、停止動作、MCU 更新は機種ごとに扱う（[STM 概要](../stm/overview.md)）。Atlas の STM 側の詳細は未記載である。
+Orion（4 輪オムニホイール）と Atlas（4 輪ステアリング）の共通の制御経路と、Orion で確認した機能構成をまとめる。CM4 から送るパケット定義は共通で、物理通信、Main のハードウェア、車輪への指令変換、フィードバック、停止動作、MCU 更新は機種ごとに扱う（[STM 概要](../stm/overview.md)）。
 
 ## 共通の制御経路
 
@@ -9,57 +9,62 @@ AI PC（crane） → CM4 → 機種別 Main → 車輪・周辺機器
               位置指令を速度指令へ変換
 ```
 
-CM4 は mode 4 の位置指令を受けると位置制御ループを閉じ、mode 3 の速度指令を Main へ送る。コマンドのレイアウトとフィールドの意味は [制御パケット](control_packet.md)、Orion と Atlas の STM 側の入口はそれぞれ [Orion 概要](../stm/orion_overview.md) と [Atlas 概要](../stm/atlas_overview.md) を参照。
+CM4 は mode 4 の位置指令を受けると位置制御ループを閉じ、mode 3 の速度指令を Main へ送る。コマンドのレイアウトとフィールドの意味は [制御パケット](control_packet.md)、Orion と Atlas の STM 側の入口はそれぞれ [Orion 概要](../stm/orion_overview.md) と [Atlas の記載状況](../stm/overview.md#atlas) を参照。
 
-## Orion のハードウェア構成
+## CM4 と Main の通信
 
-以下の図と構成表は Orion の記録である。基板間の物理配線、電源系統、各基板の回路は回路図で確認していない。CAN の接続先は、Orion の Main ファームウェアの送信先 ID と受信内容から読み取った論理構成である。
+| 機種 | 物理通信 | 状況・参照先 |
+|---|---|---|
+| Orion | UART | 現行実装。[CM4 通信の設定と受信・送信処理](../stm/orion_board_spec.md#cm4-との通信) |
+| Atlas | SPI | 採用予定。[記載状況](../stm/overview.md#atlas) |
+
+送信内容は共通の [CM4→Main パケット](control_packet.md#cm4main-パケット72-バイト) に従う。Atlas の SPI の転送手順はこの文書群には未記載であり、現行の Orion 用 UART ブリッジの対応範囲とは区別する。
+
+## Orion の機能構成
+
+以下の図と構成表は Orion の記録である。Main と各機能基板の役割と通信経路を示す。
 
 ```mermaid
 flowchart LR
     AI[機体外: AI PC（crane）/ ホスト PC] -->|Wi-Fi UDP| CM4[機体内: CM4]
-    CM4 <-->|USART2 1 Mbps| MAIN[Main 制御基板<br/>STM32G474RETx]
-    IMU[ICM20602 IMU] -->|SPI1| MAIN
-    SW[DIP / アナログスイッチ] -->|GPIO / ADC5| MAIN
-    MAIN -->|TIM5 PWM| BZ[ブザー]
-    MAIN <-->|FDCAN1 約 1 Mbps| CAN1[CAN1: 右 BLDC / Sub / 電源系]
-    MAIN <-->|FDCAN2 約 1 Mbps| CAN2[CAN2: 左 BLDC / 電源系]
-    CAN1 --> DRV[ドリブラーモータ]
-    CAN1 --> SENS[ボールセンサ / マウスセンサの情報]
-    CAN1 --> RWH[右前・右後の車輪]
-    CAN2 --> LWH[左前・左後の車輪]
-    CAN1 --> KICK[キッカー / 電源制御]
-    CAN2 --> KICK
+    CM4 <-->|UART| MAIN[Main 制御基板]
+    IMU[IMU] --> MAIN
+    SW[操作スイッチ] --> MAIN
+    MAIN --> BZ[ブザー]
+    MAIN <-->|CAN| RBLDC[右 BLDC 基板]
+    MAIN <-->|CAN| LBLDC[左 BLDC 基板]
+    MAIN <-->|CAN| SUB[Sub 基板・センサ系]
+    MAIN <-->|CAN| POWER[電源・キッカー系]
+    RBLDC --> RWH[右前・右後の車輪]
+    LBLDC --> LWH[左前・左後の車輪]
 ```
-
-図では Sub、ボールセンサ、マウスセンサを CAN1 側に置いたが、物理的にどちらのバスにつながっているかは確認していない。Sub へのファームウェア照会は CAN1 に送るが、センサの受信処理は CAN1 と CAN2 で共通である。
 
 ## Orion の制御機と役割
 
 | 機器 | 役割 | 主な接続 |
 |---|---|---|
 | AI PC（crane） | 機体ごとの指令（位置指令 mode 4、または速度指令 mode 3）を送る。CM4 経由で届くテレメトリを受ける。 | Wi-Fi、UDP |
-| CM4（Raspberry Pi CM4） | 指令を受け、mode 4 なら位置制御ループを閉じて mode 3 の速度指令にして Main へ送る。Main のテレメトリを UDP で配る。ローカルカメラでボールを検出する。MCU のファームウェア更新を指示する。詳細は [cm4/](../cm4/overview.md)。 | Wi-Fi、Main と USART2 |
-| Main 制御基板（STM32G474RETx、Cortex-M4F） | 500 Hz で姿勢とオドメトリの更新、速度と車輪角度の制御、停止判定、CAN 指令の生成を行う。IMU と操作スイッチを直接読む。詳細は [Orion 概要](../stm/orion_overview.md)。 | SPI1、ADC/GPIO、USART2、FDCAN1/2 |
-| 右 BLDC 基板（STM32F303） | 右前・右後の車輪モータを駆動し、回転速度、エンコーダ角度、電流、温度などを返す。 | FDCAN1、走行指令 ID `0x100`/`0x101` |
-| 左 BLDC 基板（STM32F303） | 左後・左前の車輪モータを駆動し、同様のフィードバックを返す。 | FDCAN2、走行指令 ID `0x102`/`0x103` |
-| Sub 基板（STM32F303） | ファームウェア上は独立した CAN ノード。Main はボール検出とマウスセンサのデータを CAN で受ける。ドリブラー指令は CAN1 の ID `0x104`。センサとドリブラーが基板上のどこに実装されているかは確認していない。 | FDCAN1 |
-| 電源基板（STM32F303） | 電源の ON/OFF、保護パラメータ、キッカーの充電・電圧・種類・発射の指令を受け、バッテリ電圧、キャパシタ電圧、温度などを返す。 | 指令は FDCAN1/2 の両方へ送る |
+| CM4（Raspberry Pi CM4） | 指令を受け、位置制御と Main への転送を行う。Main のテレメトリを UDP で配る。ローカルカメラでボールを検出する。MCU のファームウェア更新を指示する。詳細は [cm4/](../cm4/overview.md)。 | Wi-Fi、UART |
+| Main 制御基板（STM32G474） | 姿勢とオドメトリの更新、速度と車輪角度の制御、停止判定、各機能基板への指令生成を行う。IMU と操作スイッチを読む。周期と通信設定は [基板仕様](../stm/orion_board_spec.md)、操作は [Orion 概要](../stm/orion_overview.md)。 | CM4、IMU、操作スイッチ、CAN |
+| 右 BLDC 基板 | 右前・右後の車輪モータを駆動し、回転速度、エンコーダ角度、電流、温度などを返す。 | CAN |
+| 左 BLDC 基板 | 左後・左前の車輪モータを駆動し、同様のフィードバックを返す。 | CAN |
+| Sub 基板・センサ系 | Main にボール検出とマウスセンサの情報を返す。Main はドリブラーへの指令も送る。センサとドリブラーの基板上の実装位置は確認していない。 | CAN |
+| 電源・キッカー系 | 電源の ON/OFF、保護パラメータ、キッカーの充電・電圧・種類・発射の指令を受け、バッテリ電圧、キャパシタ電圧、温度などを返す。 | CAN |
 
-CAN の ID 一覧は [Orion ハードウェア仕様](../stm/orion_board_spec.md#fdcan-バスの使い分け)、ファームウェア更新時のノード番号は [MCU ファームウェア更新](firmware_update.md#対象とノード) を参照。
+ファームウェア更新で指定するバスとノード番号は [MCU ファームウェア更新](firmware_update.md#対象とノード) を参照。
 
 ## Orion の制御と情報の流れ
 
 1. crane は機体ごとの指令を Wi-Fi で CM4 へ送る（[制御パケット](control_packet.md)）。
-2. CM4 は mode 4 の位置指令なら位置制御ループを閉じ（[位置制御](../cm4/position_control.md)）、72 B の UART フレームで Main へ送る。
-3. Main は TIM7 の 2 ms 周期で指令、モードスイッチ、通信状態を確認する。IMU の yaw、車輪エンコーダ、マウスセンサ、外部ビジョンを姿勢と位置の推定に使う。
+2. CM4 は位置指令なら位置制御ループを閉じ（[位置制御](../cm4/position_control.md)）、共通パケットを Orion の UART で Main へ送る。
+3. Main は [制御周期](../stm/orion_board_spec.md#制御周期) ごとに指令、モードスイッチ、通信状態を確認する。IMU の yaw、車輪エンコーダ、マウスセンサ、外部ビジョンを姿勢と位置の推定に使う。
 4. Main は目標並進速度に加速度制限をかけ、旋回指令と合わせて 4 輪の目標回転に変換する。各輪の角度と回転速度のフィードバックから出力を計算し、CAN で左右の BLDC 基板へ送る（[Orion 速度制御](../stm/orion_speed_control.md)）。
-5. キッカーとドリブラーは、指令とボール検出をもとに制御する。Main は電源系、モータ、エラーの状態を CAN で受け、128 B のテレメトリにして CM4 へ返す（[フィードバックパケット](feedback_packet.md)）。
+5. キッカーとドリブラーは、指令とボール検出をもとに制御する。Main は電源系、モータ、エラーの状態を CAN で受け、テレメトリにして CM4 へ返す（[フィードバックパケット](feedback_packet.md)）。
 6. 通信途絶やビジョン喪失のときは、走行出力を止める（[停止判定](safety_stop.md)）。
 
 ## 機体番号とネットワーク
 
-以下は現行 CM4 実装の機体番号とネットワーク設定である。フィードバックの形式と CM4 ↔ Main の物理通信設定は Orion で確認したものを示す。
+以下は現行 CM4 実装の機体番号とネットワーク設定である。フィードバックの経路と CM4 側の UART デバイスは Orion で確認したものを示す。
 
 この文書群では、**機体番号 `N`** をロボット ID（0〜10）の意味で使う。CM4 の IP は `192.168.20.(100 + N)` である。CM4 上の各プロセスは `wlan0` の IP の末尾オクテット（`100 + N`）から `N` を求める。`ai_cmd_v2.out` は、求めた `N` が 0〜10 の範囲外なら起動を中止する。ホストツールの走査範囲はこれより広い（`host-launcher` は `.100`〜`.112`、`cm4-fleet` は既定で `N` = 0〜12）。
 
@@ -73,7 +78,7 @@ CAN の ID 一覧は [Orion ハードウェア仕様](../stm/orion_board_spec.md
 | robot feedback | `224.5.20.(100 + N):(50100 + N)` | CM4 → crane・ホスト、UDP multicast 128 B（[フィードバックパケット](feedback_packet.md)） |
 | robot feedback（CM4 内） | `127.0.0.1:(50100 + N)` | `robot_feedback.out` → `ai_cmd_v2.out`、UDP ユニキャスト 128 B |
 | ローカルカメラ（CM4 内） | `127.0.0.1:8890` | `cam_server_v3` → `ai_cmd_v2.out`、UDP 7 B |
-| CM4 ↔ Main | `/dev/serial0`、1 Mbps 8N1 | 指令 72 B / テレメトリ 128 B |
+| Orion の CM4 ↔ Main | `/dev/serial0` | [通信設定](../stm/orion_board_spec.md#cm4-との通信)、[指令](control_packet.md#cm4main-パケット72-バイト)・[テレメトリ](feedback_packet.md) の配置を参照 |
 
 例：機体番号 10 の CM4 は `192.168.20.110`。feedback は `224.5.20.110:50110`、カメラ座標は `224.5.10.110:5110` に出る。
 

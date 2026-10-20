@@ -4,10 +4,10 @@ Orion（4輪オムニホイール）の `G474_Orion_main` リポジトリ（Main
 
 | 文書 | 内容 |
 |---|---|
-| [ハードウェア仕様](orion_board_spec.md) | MCU、クロック、ピン、ペリフェラル、CAN ID、NVIC |
+| [基板仕様](orion_board_spec.md) | 外部通信・制御周期・起動・保護条件 |
 | [速度制御](orion_speed_control.md) | `MAIN_MODE_FULL_AI_CONTROL` の速度制御 |
-| [ブートローダー](orion_bootloader.md) | Flash 配置、A/B 起動判定、安全 IO |
-| [CM4 との UART](orion_uart_cm4.md) | USART2 の受信・送信の実装 |
+| [ブートローダー](orion_bootloader.md) | Flash 配置、A/B 起動判定、更新中の安全動作 |
+| [CM4 との UART](orion_uart_cm4.md) | 指令の受信とテレメトリの送信 |
 | [診断機能](orion_diagnostics.md) | DRIVE_LOG、エンコーダーノイズ、静止時の角度誤差クリア |
 
 上位からの指令の意味は [制御パケット](../common/control_packet.md)、テレメトリは [フィードバックパケット](../common/feedback_packet.md)、停止条件は [停止判定](../common/safety_stop.md) を参照。
@@ -29,8 +29,6 @@ Orion（4輪オムニホイール）の `G474_Orion_main` リポジトリ（Main
 | 8 | `MAIN_MODE_MOTOR_CALIBRATION` | モーターキャリブレーション。左右同時に実行してはいけない。左右どちらかのボタンを長押しで開始 |
 | 9 | `MAIN_MODE_ERROR` | エラーモード（モード遷移のデバッグ用） |
 
-スイッチ値の読み方は [ハードウェア仕様](orion_board_spec.md#dip-スイッチ--アナログスイッチ) を参照。
-
 ## LED 表示
 
 | 色 | 意味 |
@@ -38,7 +36,7 @@ Orion（4輪オムニホイール）の `G474_Orion_main` リポジトリ（Main
 | 白 | IMU キャリブレーション中 |
 | 緑 | PC（AI）との通信確立中 |
 | 赤 | エラー状態 |
-| 青 | メインルーチンの動作確認用の点滅（TIM7 割り込み） |
+| 青 | メインルーチンの動作確認用の点滅 |
 
 ## ビルドと書込み
 
@@ -92,7 +90,7 @@ ST-Link の接続確認:
 
 ## デバッグ UART（LPUART1、2 Mbps）
 
-起動ログ、状態表示、表示ページの切り替え、ゲイン調整に使う。表示ページの名前と周期は `Core/Src/main.c` の `print_page_config[]` にまとめている。
+起動ログ、状態表示、表示ページの切り替え、ゲイン調整に使う。通信設定は [デバッグ UART](orion_board_spec.md#デバッグ-uart) を参照。表示ページの名前と周期は `Core/Src/main.c` の `print_page_config[]` にまとめている。
 
 | キー | 動作 |
 |---|---|

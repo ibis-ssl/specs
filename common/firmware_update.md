@@ -49,7 +49,7 @@ python3 cm4/firmware/fw_version_reader.py --port /dev/serial0 \
 
 ### 更新モードへの切り替え
 
-CM4 は通常の 72 B UART フレーム（[制御パケット](control_packet.md#uart-フレームcm4--main72-バイト)）の byte 1..4 に `FWUP` を入れ、byte 5 のコマンドで Main に指示する。
+Orion の CM4 は通常の [CM4→Main パケット](control_packet.md#cm4main-パケット72-バイト) の byte 1..4 に `FWUP` を入れ、byte 5 のコマンドで Main に指示する。以下は Orion の UART 更新の仕様で、Atlas の SPI による更新手順は未記載である。
 
 | byte 5 | 動作 |
 |---|---|
@@ -59,7 +59,7 @@ CM4 は通常の 72 B UART フレーム（[制御パケット](control_packet.md
 | `4` | Main bootloader の UART 更新へ移る（Main 自身の更新） |
 | `5` | Main bootloader で PENDING のスロットを CONFIRMED にする |
 
-`4` と `5` では、現在の稼働スロットと要求をバックアップレジスタ（`TAMP->BKP0R/BKP1R`）に書いて再起動し、bootloader が受け取る。
+`4` と `5` では、現在の稼働スロットと要求を保存して再起動し、bootloader が受け取る。
 
 ### Main の A/B 更新
 
@@ -70,18 +70,17 @@ CM4 は通常の 72 B UART フレーム（[制御パケット](control_packet.md
 Main のアプリ内にある `fw_update_gateway.c` が、CM4 から受けた OFW2 フレームを CAN へ展開する。
 
 - UART フレーム：magic `OFW2`、version、type、sequence、length、ヘッダ CRC16、payload（最大 907 バイト）、CRC32C。同じ sequence を再び受けたら、前回の応答を返す。
-- CAN：データは `0x480`〜`0x4FF`（chunk 896 バイトを 7 バイトずつ 128 フレームに分ける）、ノードへのコマンドは `0x610`、応答は `0x650 + node ID`。
-- `ENTER` で CAN1 と CAN2 に別々の node ID を指定できる。使わないバスは `0xFF`。左右の BLDC には同じデータフレームを両方の FDCAN から並列に送り、応答はバスごとに確認する。status と確定 offset が両方で一致したときだけ成功とする。
-- FDCAN の送信 FIFO に空きができるまで待ち、更新フレームは捨てない。CAN の応答がタイムアウトしたら HELLO で確定 offset を問い合わせ、書込み済みの chunk を二重に書かない。
-- Power を更新するときだけ、8 CAN フレームごとに 1 ms 待つ。更新前に CAN ID `0x110` でキッカーを安全状態にし、Power の状態を 3 回続けて確認する。
-- ゲートウェイの動作中は、TIM7 の制御周期、ブザー PWM、通常のテレメトリ送信を止める。
+- `ENTER` で CAN1 と CAN2 に別々の node ID を指定できる。使わないバスは `0xFF`。左右の BLDC には同じイメージを両バスへ並列に送り、応答はバスごとに確認する。status と確定 offset が両方で一致したときだけ成功とする。
+- 応答がタイムアウトしたら HELLO で確定 offset を問い合わせ、書込み済みの chunk を二重に書かない。
+- Power の更新前にキッカーを安全状態にし、Power の状態が安定したことを確認する。
+- ゲートウェイの動作中は、通常の走行制御、ブザー、テレメトリ送信を止める。
 
 ### バージョン確認（FWVR）
 
 Main の各スロットのイメージ先頭 `+0x400` には、`FWVR` magic と Unix 秒の build ID が置かれる（CAN ノード側のファームウェアの配置は、この文書群では確認していない）。
 
-1. CM4 は 72 B UART フレームの byte 1..4 に `FWVR` を入れて送る。
-2. Main は自身の両スロットを直接読み、CAN ID `0x611` で Sub（CAN1 node 4）、右 BLDC（CAN1 node 16）、左 BLDC（CAN2 node 17）、Power（node 100、両バス）に照会する。
+1. CM4 は共通の [CM4→Main パケット](control_packet.md#cm4main-パケット72-バイト) の byte 1..4 に `FWVR` を入れて送る。
+2. Main は自身の両スロットを直接読み、[対象とノード](#対象とノード) に示す CAN ノードへ照会する。Power への照会は両バスに送る。
 3. 応答のないノードにだけ 40 ms 間隔で再照会し、250 ms 後に 6 対象の build ID と image CRC32C を 60 バイトの応答にまとめて CM4 へ返す。
 
 `fw_version_reader.py` は期待するバイナリを指定すると、実機の内容と比べた結果も表示する。Main のビルドスクリプトは、ビルドごとに Git hash と dirty 状態を `Script/Logs/Build/` に JSON で保存する（[Orion 概要](../stm/orion_overview.md#ビルドと書込み)）。

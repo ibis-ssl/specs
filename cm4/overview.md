@@ -94,7 +94,7 @@ chmod +x cm4/setup.sh
 
 - `--passthrough` で、受けた指令をそのまま流せること。
 - crane が mode 4 を送ったとき、`ai_cmd_v2.out` の表示に `mode 4` と `tarPos` が出ること。
-- `--tx-rate-hz 500` での UART 占有率。Orion の G474 の `ORE`/`FE`/`NE`/`PE` と parser timeout のカウンタが増えないことを確認する（[Orion CM4 との UART 実装](../stm/orion_uart_cm4.md)）。
+- `--tx-rate-hz 500` での UART 占有率。Orion の G474 の `ORE`/`FE`/`NE`/`PE` と parser timeout のカウンタが増えないことを確認する（[Orion の CM4 通信](../stm/orion_board_spec.md#cm4-との通信)）。
 - 安全停止のときの惰走距離と、crane を止めてから車輪が止まるまでの時間（[停止判定](../common/safety_stop.md#104-ms-は駆動力が切れるまでで止まるまでではない)）。
 
 ## ログ

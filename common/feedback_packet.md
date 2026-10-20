@@ -6,10 +6,10 @@ Main（G474）が CM4 へ送る 128 バイトの状態パケット（テレメ�
 
 ## 送信元と経路
 
-送信元は G474 の `Core/Src/ai_comm.c` にある `sendRobotInfo()`。USART2（1 Mbps）から DMA で送る。
+送信元は G474 の `Core/Src/ai_comm.c` にある `sendRobotInfo()`。Orion の UART で送る。接続設定は [基板仕様](../stm/orion_board_spec.md#cm4-との通信) を参照。
 
-- 送信周期は 125 Hz（`ROBOT_INFO_CYCLE = 125`）。500 Hz の制御周期の中で間引いて送る。
-- デバッグ UART で `t` を送ると送信を一時停止・再開でき、FW ゲートウェイの動作中は送信しない（[Orion CM4 との UART 実装](../stm/orion_uart_cm4.md)）。
+- 送信周期は 125 Hz（`ROBOT_INFO_CYCLE = 125`）。[Main の制御周期](../stm/orion_board_spec.md#制御周期) の中で間引いて送る。
+- デバッグ UART で `t` を送ると送信を一時停止・再開でき、FW ゲートウェイの動作中は送信しない（[Orion の CM4 通信](../stm/orion_board_spec.md#cm4-との通信)）。
 
 ```text
 G474 sendRobotInfo()
@@ -42,20 +42,20 @@ CM4 側の転送処理の詳細は [ブリッジ](../cm4/bridge.md#forward_robot
 | byte | 名前 | 型 | 内容 |
 |---|---|---|---|
 | `4..7` | `imu_yaw_deg` | float | IMU の yaw [deg] |
-| `8..11` | `battery_voltage` | float | `power_voltage[0]`（CAN `0x210`、右 BLDC 基板で測ったバッテリ電圧） |
-| `12..13` | `ball_detection[2]` | uint8 ×2 | ボール検出（CAN `0x240`） |
+| `8..11` | `battery_voltage` | float | `power_voltage[0]`（右 BLDC 基板で測ったバッテリ電圧） |
+| `12..13` | `ball_detection[2]` | uint8 ×2 | ボール検出 |
 | `14` | `tx_cycle_count` | uint8 | feedback を送るたびに 1 増えるカウンタ |
 | `15` | `kick_state_div10` | uint8 | `kick_state / 10` |
 | `16..17` | `current_error_id` | uint16 LE | 現在のエラー ID |
 | `18..19` | `current_error_info` | uint16 LE | エラー info |
 | `20..23` | `current_error_value` | float | エラー値 |
-| `24..27` | `motor_current_x10[4]` | uint8 ×4 | 各モータの電流 ×10（CAN `0x230`〜`0x233`） |
+| `24..27` | `motor_current_x10[4]` | uint8 ×4 | 各モータの電流 ×10 |
 | `28` | — | uint8 | 未使用（常に 0） |
 | `29..32` | `temp_motor[4]` | uint8 ×4 | モータ温度 |
 | `33` | `temp_fet` | uint8 | 電源系の FET 温度 |
 | `34..35` | `temp_coil[2]` | uint8 ×2 | コイル温度 |
 | `36..39` | `diff_angle_deg` | float | `imu_yaw_deg - deg(vision_global_theta)` |
-| `40..43` | `capacitor_boost_voltage` | float | `power_voltage[6]`（CAN `0x216`、キャパシタ電圧） |
+| `40..43` | `capacitor_boost_voltage` | float | `power_voltage[6]`（キャパシタ電圧） |
 | `44..47` | `vision_based_position_x` | float | ビジョンとオドメトリを統合した推定位置 X [m] |
 | `48..51` | `vision_based_position_y` | float | 同 Y [m] |
 | `52..55` | `global_odom_speed_x` | float | オドメトリ速度（グローバル）X [m/s] |
@@ -77,7 +77,7 @@ CM4 は byte 44..51 を自機の現在位置として位置制御に使う。cra
 - `camera_radius = camera_radius_div4 * 4`
 - `camera_pos_y` と `camera_fps` はそのまま使う。
 
-カメラ値は、CM4 の `cam_server_v3` が検出して UART フレームで G474 へ送ったものが返ってくる（[ブリッジ](../cm4/bridge.md#ローカルカメラ情報の挿入)）。
+カメラ値は、CM4 の `cam_server_v3` が検出して共通パケットに挿入し、Orion の UART で G474 へ送ったものが返ってくる（[ブリッジ](../cm4/bridge.md#ローカルカメラ情報の挿入)）。
 
 ### tx_value_array
 

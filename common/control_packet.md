@@ -2,7 +2,7 @@
 
 AI（crane）から CM4 を経由して Main へ送る指令の形式と、各フィールドの意味をまとめる。コマンドの定義は Orion（4 輪オムニホイール）と Atlas（4 輪ステアリング）で共通である。
 
-経路は `crane →(Wi-Fi UDP 65 B)→ CM4 →(UART 72 B)→ Main`。どちらの区間でも中身は 64 バイトの `RobotCommandSerializedV2` である。Orion の接続では UART 1 Mbps の帯域がパケットサイズの最も厳しい制約になる。
+経路は `crane →(Wi-Fi UDP 65 B)→ CM4 →(機種別の物理通信)→ Main`。中身は 64 バイトの `RobotCommandSerializedV2` である。CM4 から送るパケットの配置は共通とし、物理通信方式と採用状況は [システム構成](system_overview.md#cm4-と-main-の通信)を参照。
 
 以下の G474 におけるフィールドの利用、受信処理、接続判定、フィードバックの説明は、`G474_Orion_main` で確認した Orion の実装を指す。UART の物理設定と `FWVR` / `FWUP` の受信処理も Orion の記録で、Atlas の STM 側の実装詳細は未記載である。
 
@@ -43,7 +43,7 @@ GUI_Qt の送信実装（Qt Communication Tester）もこの 65 バイト形式�
 
 | offset | 名前 | 符号化 | 意味 |
 |---|---|---|---|
-| `0` | `HEADER` | 生値 | crane は `0x00` を入れる。CM4 が UART へ出す直前に `0xFE` で上書きする |
+| `0` | `HEADER` | 生値 | crane は `0x00` を入れる。CM4 が Main へ送る直前に `0xFE` で上書きする |
 | `1` | `CHECK_COUNTER` | 生値 | [後述](#check_counter) |
 | `2..3` | `VISION_GLOBAL_X` | float, range `32.767` | 外部グローバルカメラ座標系での機体の X [m] |
 | `4..5` | `VISION_GLOBAL_Y` | float, range `32.767` | 同 Y [m] |
@@ -142,9 +142,9 @@ crane の ROS メッセージ（`crane_msgs/msg/RobotCommand.msg`）の制御モ
 
 目標位置は mode_args ではなく固定フィールドの `TARGET_GLOBAL_POS_X/Y`（32..35）に入る。到達時の速度上限は `TERMINAL_VELOCITY`（36..37）に入る。
 
-## UART フレーム（CM4 → Main、72 バイト）
+## CM4→Main パケット（72 バイト）
 
-以下の CM4 送信コマンドの構成は Orion と Atlas で共通である。`ai_cmd_v2.out` が `/dev/serial0` から 1 Mbps 8N1 で送る接続設定は Orion で確認したものを示す。
+以下のパケット配置は Orion と Atlas で共通である。物理通信の速度・転送手順は機種別に扱い、Orion の接続設定は [基板の対外仕様](../stm/orion_board_spec.md#cm4-との通信)を参照。
 
 | byte | 内容 |
 |---|---|
@@ -156,7 +156,7 @@ crane の ROS メッセージ（`crane_msgs/msg/RobotCommand.msg`）の制御モ
 | `70` | ローカルカメラ fps |
 | `71` | チェックサム：byte 0..70 の総和 `& 0xFF` |
 
-- 1 フレームの送信には 72 バイト × 10 bit / 1 Mbps = 720 µs かかる。送信レートを上げると UART の占有率がそのまま上がる（100 Hz で 7.2%、500 Hz で 36%）。
+- Orion の UART の送信時間と占有率は [UART 占有率](../stm/orion_board_spec.md#uart-占有率)を参照。
 - カメラ値の出どころと、途絶したときの扱いは [ブリッジ](../cm4/bridge.md#ローカルカメラ情報の挿入) を参照。
 - Orion では、byte 1..4 が `FWVR` または `FWUP` のフレームは、制御指令ではなくファームウェアのバージョン照会・更新要求として扱われる（[MCU ファームウェア更新](firmware_update.md)）。
 

@@ -32,7 +32,7 @@ crane --UDP:12345 65B--> ai_cmd_v2.out --UART 72B--> G474
 
 - ポート：`/dev/serial0`。`--serial-port` で変えられる。
 - baudrate：既定 `1000000`。`-s` で変えられる。
-- 72 バイトのフレームを組み立てて送る（[UART フレーム](../common/control_packet.md#uart-フレームcm4--main72-バイト)）。先頭を `0xFE` に上書きし、末尾にチェックサムを付ける。
+- [CM4→Main パケット](../common/control_packet.md#cm4main-パケット72-バイト)を組み立て、Orion の UART で送る。先頭を `0xFE` に上書きし、末尾にチェックサムを付ける。
 
 ### 2 つの経路
 

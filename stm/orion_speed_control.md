@@ -1,6 +1,6 @@
 # Orion：速度制御（MAIN_MODE_FULL_AI_CONTROL）
 
-Orion（4輪オムニホイール）の `MAIN_MODE_FULL_AI_CONTROL` のとき、`Core/Src/state_func.c` の `maintaskRun()` から呼ばれる速度制御系をまとめる。主制御は TIM7 割り込みの中で 500 Hz（2 ms 周期）で実行する。CM4 から受け取るコマンド定義は Atlas と共通だが、以下のオムニ逆運動学、補正値、ゲイン、各輪出力は Orion の実装である。機種別の入口は [STM 概要](overview.md) を参照。
+Orion（4輪オムニホイール）の `MAIN_MODE_FULL_AI_CONTROL` のとき、`Core/Src/state_func.c` の `maintaskRun()` から呼ばれる速度制御系をまとめる。主制御の周期は [基板仕様](orion_board_spec.md#制御周期) を参照。CM4 から受け取るコマンド定義は Atlas と共通だが、以下のオムニ逆運動学、補正値、ゲイン、各輪出力は Orion の実装である。機種別の入口は [STM 概要](overview.md) を参照。
 
 ## 速度指令から車輪出力までの制御ブロック図
 
@@ -17,7 +17,7 @@ flowchart TB
     ANG["各輪の目標 rps を積分 → 目標角度"]
     CTRL["各輪の出力計算<br/>角度 P + rps 偏差項 + yaw 減衰 + rps FF"]
     LIMIT["出力を ±60 に制限"]
-    CAN["CAN 指令<br/>右前・右後: CAN1 ID 0x100/0x101<br/>左後・左前: CAN2 ID 0x102/0x103"]
+    CAN["CAN 指令<br/>左右の BLDC 基板へ送信"]
     DRIVE["左右 BLDC 基板 → 4 輪モータ"]
     FB["CAN フィードバック<br/>各輪の実 rps・エンコーダ角度"]
     IMU["IMU yaw・yaw 角速度"]
