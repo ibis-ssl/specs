@@ -11,6 +11,7 @@ AI（crane）・CM4・Main・PC・シミュレータにまたがる通信契約�
 | [位置制御設定](common/config_packet.md) | AI→CM4のゲイン設定契約 |
 | [Main共通feedback](common/feedback_packet.md) | Main→CM4→PCの配置・CRC・同期・単位 |
 | [停止判定](common/safety_stop.md) | 各層の停止責務・タイムアウトと停止の意味 |
+| [Orion CAN](common/orion_can.md) | MainとCANノードの通信・ID・バス割当 |
 | [MCU更新](common/firmware_update.md) | CM4・Main・CANノード間の更新契約と給電条件 |
 | [AI連携](pc/crane_integration.md) | 送受信側の適合条件と対応版の確認 |
 | [シミュレーション連携](pc/simulation.md) | crane・CM4相当・simulator-cli間の接続契約 |
@@ -27,7 +28,7 @@ Orionは4輪オムニ機体で、OrionMain（STM32G474）とのUART経路を現�
 | [crane](https://github.com/ibis-ssl/crane) | AI内の送受信実装・ROS設定・起動 |
 | framework | simulator-cliの実装・物理モデル・起動方法は担当repoで管理 |
 
-`cm4/`、`pc/host_tools.md`、`pc/fleet.md`はCM4 repoの操作文書への参照ページであり、実装詳細を複製しない。
+`cm4/`、`pc/host_tools.md`、`pc/fleet.md`はCM4 repoへの案内、`stm/orion_overview.md`・`orion_speed_control.md`・`orion_diagnostics.md`はMain repoへの案内とする。内部実装・操作の本文は担当repoで保守する。
 
 ## 文書の参照方向と更新ルール
 
@@ -37,6 +38,15 @@ Orionは4輪オムニ機体で、OrionMain（STM32G474）とのUART経路を現�
 4. モジュール内部だけの変更は担当repoで完結させる。共通契約への影響がある場合だけspecsを更新する。
 5. 現行仕様には現在の契約だけを書く。未実装案は`proposals/`、変更経緯・実機計測・過去の調査資料は各repoの作業ログ・履歴へ置く。
 6. 日本語・UTF-8で記載する。コードの参照はファイル名・シンボル名で示す。外部repoの適合や配備済み状態を、未確認のまま断定しない。
+
+## 参照方向
+
+```text
+各実装repoの文書 → specsの共通契約 → specs内の共通定義
+specsの案内ページ → 各実装repoの詳細・操作
+```
+
+仕様上の依存は上段の向きとする。下段は読者向けの案内であり、リンク先の内部実装を共通契約の正本にしない。同じ配置・単位・閾値を両側へ複製しない。内部実装に契約との差が残る場合は各repoで差と影響を記録し、契約に適合済みと断定しない。
 
 ## 実装照合の範囲
 

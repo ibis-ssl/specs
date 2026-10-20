@@ -5,7 +5,7 @@ Orion と Atlas は、CM4 から送るパケットの定義を共有する。パ
 | 共通仕様の参照先 | 内容 |
 |---|---|
 | [制御モード](../common/control_packet.md#制御モード) | CM4 が解釈・生成するコマンドの意味 |
-| [CM4→Main パケット](../common/control_packet.md#cm4main-パケット72-バイト) | コマンド、ローカルカメラ情報、チェックサムの配置 |
+| [CM4→Main パケット](../common/control_packet.md#cm4main-パケット72-バイト) | コマンド、未定義領域、チェックサムの配置 |
 | [CM4 位置制御](../cm4/position_control.md) | CM4 側の制御則とコマンド生成 |
 
 ## 機種別の受信・送信実装

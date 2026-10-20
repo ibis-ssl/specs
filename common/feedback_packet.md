@@ -6,6 +6,8 @@ MainからCM4、CM4からcrane・PCの生データデバッグツールへ渡す
 
 OrionMain（STM32G474）のUARTからCM4へ送る。通信設定は[基板の対外仕様](../stm/orion_board_spec.md#cm4-との通信)、ネットワーク宛先は[システム構成](system_overview.md)を参照する。
 
+OrionMainは制御周期の中で目標125 Hzに間引いて送信する。デバッグ操作による一時停止、FW更新、UART送信中などで送信できない場合があるため、受信側は固定周期の到着を保証として使わず、[停止判定](safety_stop.md)に従って鮮度を判定する。
+
 CM4は検証済みフレームを生データmulticastとCM4内の位置制御用loopbackへ渡す。UARTの読み手とソケット構成は[CM4ブリッジ実装](https://github.com/ibis-ssl/Orion_CM4/blob/main/doc/bridge.md)に記載する。
 
 ## パケット仕様
@@ -39,7 +41,7 @@ byte 3 は指令の `check_counter` の反射です。mode 4 の位置制御経�
 
 | バイト | 項目 | 形式・意味 |
 | --- | --- | --- |
-| `4` | `tx_cycle_count` | 送信ごとに1増える`uint8_t` |
+| `4` | `tx_cycle_count` | DMA送信登録成功ごとに1増える`uint8_t`。送信完了・受信の確認ではない |
 | `5..6` | `current_error_id` | little-endian `uint16_t` |
 | `7..8` | `current_error_info` | little-endian `uint16_t` |
 | `9..12` | `current_error_value` | little-endian IEEE754 float |
@@ -50,7 +52,7 @@ byte 3 は指令の `check_counter` の反射です。mode 4 の位置制御経�
 | --- | --- | --- |
 | `13..16` | `imu_yaw_deg` | little-endian IEEE754 float |
 | `17..18` | `ball_detection[2]` | 各1バイト |
-| `19` | `ball_detection_extra` | 1バイト |
+| `19` | `ball_detection_extra` | 1バイト。OrionMainでは未使用で0 |
 | `20..23` | `diff_angle_deg` | little-endian IEEE754 float |
 
 #### 電源基板
@@ -101,7 +103,7 @@ OrionMainはステアを搭載しないため、各角度を0 radの符号化値
 | `124..127` | `global_odom_speed_y` | little-endian IEEE754 float |
 
 byte 4..127はすべて上表のフィールドに割り当てます。
-FW更新ゲートウェイ動作中は通常のfeedback送信を停止し、独立した16バイトの`FWRP`応答フレームを送ります。
+FW更新ゲートウェイ動作中は通常のfeedback送信を停止します。更新プロトコルの応答と、独立した16バイトの`FWRP`応答フレームはこの128バイト配置に格納しません。更新の経路は[MCU更新](firmware_update.md)を参照してください。
 
 CM4のローカルカメラ情報は、このfeedbackパケットとは別の経路で受けます。形式は[CM4カメラ実装](https://github.com/ibis-ssl/Orion_CM4/blob/main/doc/camera.md)を参照してください。
 

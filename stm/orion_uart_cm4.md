@@ -1,30 +1,15 @@
-# Orion：CM4 との UART
+# Orion：CM4とのUART契約
 
-Orion（4輪オムニホイール）の Main 基板が、UART で CM4 からコマンドを受信し、テレメトリを返す通信仕様をまとめる。CM4 から送るコマンドの定義は Atlas と共通だが、以下の受信処理、更新要求の扱い、テレメトリ送信は Orion の仕様である。共通仕様の入口は [CM4 との通信](cm4_interface.md) を参照。
+OrionMainとCM4の対外仕様を扱う。物理設定は[基板の対外仕様](orion_board_spec.md#cm4-との通信)、指令は[制御パケット](../common/control_packet.md#cm4main-パケット72-バイト)、状態は[共通feedback](../common/feedback_packet.md)、通信断と停止は[停止判定](../common/safety_stop.md)を正本とする。
 
-パケットの形式は [制御パケット](../common/control_packet.md#cm4main-パケット72-バイト)（受信 72 B）と [フィードバックパケット](../common/feedback_packet.md)（送信 128 B）、タイムアウトは [停止判定](../common/safety_stop.md#g474-の通信タイムアウト) を参照。
+## 受信・応答
 
-## 設定
-
-通信速度とデータ形式は [CM4 との通信設定](orion_board_spec.md#cm4-との通信) を参照。
+ヘッダ・長さ・チェックサムが正しい制御指令だけを採用し、CM4接続の鮮度を更新する。`FWVR` / `FWUP`は通常制御指令と区別して[更新・照会要求](../common/firmware_update.md)として扱う。FWゲートウェイ中はOFW2を受信し、通常のfeedbackを停止する。
 
 ## UART 占有率
 
-共通の [CM4→Main パケット](../common/control_packet.md#cm4main-パケット72-バイト) と [UART の通信設定](orion_board_spec.md#cm4-との通信) から、1 フレームの送信時間は 72 バイト × 10 bit / 1,000,000 bit/s = 720 µs となる。スタート・ストップビットを含め、1 バイトに 10 bit を使うためである。UART の占有率は送信レートに比例し、100 Hz で 7.2%、500 Hz で 36% となる。
+72バイトの指令は8N1・1 Mbpsで720 µsを占有する。指令100 Hzで7.2%、500 Hzで36%となる。feedbackの送信周期・鮮度の扱いは[feedback契約](../common/feedback_packet.md#送信元と経路)を参照する。
 
-## 受信
+## Main内部の参照先
 
-- 共通パケットのヘッダ・長さ・チェックサムを検査し、正しいパケットだけを取り込む。
-- byte 1..4 が `FWVR` / `FWUP` なら、バージョン照会・更新要求として扱う（[MCU ファームウェア更新](../common/firmware_update.md#更新モードへの切り替え)）。
-- それ以外の制御指令を取り込むと、CM4 との接続のタイムスタンプを更新する。
-- FW ゲートウェイの動作中は、OFW2 の更新データとして受信する。転送形式と処理は [CAN ノードの更新](../common/firmware_update.md#can-ノードの更新main-ゲートウェイ) を参照。
-
-
-## テレメトリ送信
-
-- 制御周期の中で 125 Hz に間引き、128 B の状態パケットを送る。
-- 次のときは送らない：デバッグ UART で `t` を押して止めているとき（もう一度押すと再開。FW 更新の応答には影響しない）、FW ゲートウェイの動作中（OFW2 の応答と取り合わないため）。
-
-## 既知の制約
-
-前回のテレメトリ送信が進行中でも送信バッファを書き換えることがあるため、送信が重なるとデータが壊れる可能性がある。
+FIFO受信・DMA送信・レジスタ競合防止・診断・デバッグ操作は[MainのUART実装](https://github.com/ibis-ssl/G474_Orion_main/blob/main/doc/uart_cm4.md)で管理する。byte 64..70を旧カメラ情報として読むMainの残存処理と影響も同文書で追跡する。共通契約は同領域を未定義・ゼロ送信とし、旧経路の互換性を保証しない。

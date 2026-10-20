@@ -41,7 +41,7 @@ sys->stop_flag || ai_cmd->stop_emergency || !ai_cmd->is_vision_available
 - `stop_emergency`：指令の停止フラグ。AI 接続がタイムアウトしたときも `resetAiCmdData()` によって true になる。
 - ビジョン：`is_vision_available` が偽、または最後に捉えてから 500 ms を超えたとき。500 ms は調整パラメータではなくファームウェアの定数。
 
-`sys->stop_flag` が立っている周期だけ `clearSpeedContrlValue()` が呼ばれ、速度制御の内部状態を実際のオドメトリ速度に合わせる。停止指令やビジョン喪失だけで出力が 0 になった周期には呼ばれない（[Orion 速度制御](../stm/orion_speed_control.md#停止条件)）。
+停止中の内部制御状態の扱いは[Mainの速度制御実装](https://github.com/ibis-ssl/G474_Orion_main/blob/main/doc/hw_control.md#停止条件)で管理する。
 
 エラーが起きたときはメインモードを `MAIN_MODE_ERROR` にし、モータを止め、CAN でエラーを送り、手動で電源をリセットするまで待つ。
 
@@ -95,7 +95,7 @@ mode 4 の位置制御経路では、crane が沈黙しても CM4 は `check_cou
 | mode 3 で `r = 0`、`STOP_EMERGENCY` なし | `speedControl` → `omniMoveIndiv` | 車輪の制御が効く（能動制動） |
 | `STOP_EMERGENCY` あり | `omniStopAll` | 駆動力ゼロ（惰走） |
 
-CM4 の安全停止はすべて `STOP_EMERGENCY` を立てるので、crane 断・feedback 断・ビジョン断はすべて下の段（惰走）になる。約 104 ms で駆動力が切れ、そこからは慣性で転がる。惰走距離は能動制動の数倍になる。
+CM4 の安全停止はすべて `STOP_EMERGENCY` を立てるので、crane 断・feedback 断・ビジョン断はすべて下の段（惰走）になる。約 104 ms で駆動力が切れ、そこからは慣性で転がる。惰走距離と能動制動時の距離の関係は機体と条件ごとに実測する。
 
 実機で「crane を止めてから車輪が止まるまで」を測るときは、**駆動力が切れる時刻（約 104 ms、予算と照らし合わせる対象）と、機体が静止する時刻（惰走距離のぶん後）**を分けて記録する。測るときはロボットが壁や他の機体に当たらない向きにし、開始速度が実際に出ていることを確かめる。塞がれた向きでも「それらしい」値が出るので、数値だけでは異常と分からない。
 

@@ -26,7 +26,11 @@ Orion（4輪オムニホイール）の Main 基板について、上位との�
 ### デバッグ UART
 
 - 通信設定: 2,000,000 bps、8N1。
-- 起動ログ、状態表示、デバッグ表示の切替、ゲイン調整に使う。操作方法は [Orion 概要](orion_overview.md#デバッグ-uartlpuart12-mbps)を参照。
+- 起動ログ、状態表示、デバッグ表示の切替、ゲイン調整に使う。操作方法は[Main開発文書](https://github.com/ibis-ssl/G474_Orion_main/blob/main/doc/overview.md)を参照。
+
+### CANノードとの通信
+
+バスの設定・論理割当・送受信IDは[MainとCANノードの通信](../common/orion_can.md)を参照する。
 
 ## 起動と校正
 

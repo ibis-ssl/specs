@@ -55,6 +55,8 @@ Orion の CM4 は通常の [CM4→Main パケット](control_packet.md#cm4main-�
 
 ### CAN ノードの更新（Main ゲートウェイ）
 
+CAN上のIDとデータフレームは[Orion CAN契約](orion_can.md#更新照会)を参照する。
+
 Main のアプリ内にある `fw_update_gateway.c` が、CM4 から受けた OFW2 フレームを CAN へ展開する。
 
 - UART フレーム：magic `OFW2`、version、type、sequence、length、ヘッダ CRC16、payload（最大 907 バイト）、CRC32C。同じ sequence を再び受けたら、前回の応答を返す。

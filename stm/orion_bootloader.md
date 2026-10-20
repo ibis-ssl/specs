@@ -1,6 +1,6 @@
 # Orion：ブートローダー（Main 基板）
 
-Orion（4輪オムニホイール）の Main 基板（STM32G474）は、User Flash の先頭に基板専用のアプリケーションブートローダー（`Bootloader/`）を置き、通常アプリを A/B の 2 スロットで持つ。CM4 からの UART 更新、PENDING と CONFIRM、起動に失敗したときのロールバックを担当する。以下の Flash 配置、更新中の安全動作、ビルド・導入手順は Orion の実装である。更新手順の全体は [MCU ファームウェア更新](../common/firmware_update.md)、機種別の入口は [STM 概要](overview.md) を参照。
+Orion（4輪オムニホイール）の Main 基板（STM32G474）は、User Flash の先頭に基板専用のアプリケーションブートローダー（`Bootloader/`）を置き、通常アプリを A/B の 2 スロットで持つ。CM4 からの UART 更新、PENDING と CONFIRM、起動に失敗したときのロールバックを担当する。以下はOrionの更新ツールとMainが共有するイメージ配置・起動状態・更新中の安全動作の契約である。更新手順の全体は [MCU ファームウェア更新](../common/firmware_update.md)、機種別の入口は [STM 概要](overview.md) を参照。
 
 STM32 の System Memory bootloader、BOOT0 による ROM boot、ハードウェアのバンクスワップ（`BFB2`）は使わない。
 
@@ -15,8 +15,7 @@ STM32 の System Memory bootloader、BOOT0 による ROM boot、ハードウェ�
 | Slot B | `0x08040000`〜`0x08077FFF` | 224 KB | 通常アプリ |
 | Metadata | `0x08078000`〜`0x0807FFFF` | 32 KB | Slot A metadata（先頭）、Slot B metadata（`+0x800`）、control record（`+0x1000`） |
 
-- 通常アプリのリンカ `STM32G474RETX_FLASH.ld` は Slot A（`0x08008000`、224 KB）を指す。Slot B 用には `APP_FLASH_ORIGIN` で origin を差し替える。
-- 通常アプリは `SystemInit()` で `SCB->VTOR = &g_pfnVectors` とし、自分がリンクされたスロットのベクタを使う。
+- 更新イメージは書込み先スロットのアドレスにリンクする。
 - アプリ先頭の `+0x400` には `.fw_version`（`FWVR` magic と build ID）を置く（[MCU ファームウェア更新](../common/firmware_update.md#バージョン確認fwvr)）。
 
 ### metadata と control record
@@ -24,29 +23,11 @@ STM32 の System Memory bootloader、BOOT0 による ROM boot、ハードウェ�
 - **metadata**（スロットごと）：magic `OFW1`、format version、record size、slot、image base、image size、image CRC32C、generation、state、record CRC32C。state は `EMPTY` / `RECEIVING` / `VERIFIED` / `PENDING` / `CONFIRMED` / `INVALID`。
 - **control record**：magic、format version、generation、優先スロット（`preferred_slot`）、起動試行回数（`boot_attempts`）、record CRC32C。
 
-## 起動判定
+## 起動と確定の契約
 
-`Bootloader/Src/main.c` は次の順に処理する。
+イメージとmetadataを検証してから有効なスロットを起動する。PENDINGを起動するたびに試行回数を記録し、3回確定できなかった場合は、もう一方の有効なCONFIRMEDスロットへ戻す。起動できるスロットがなければ通常制御を開始せず停止する。
 
-1. [更新中の安全動作](#更新中の安全動作) に従い、検証中 LED を点ける。
-2. バックアップレジスタ `TAMP->BKP0R/BKP1R` から要求を読み、消去する。
-   - `BOOT_REQUEST_UPDATE`：UART 更新モードに入る（[UART 更新](#uart-更新ofw1)）。
-   - `BOOT_REQUEST_CONFIRM`：指定スロットが PENDING なら CONFIRMED にし、control record の試行回数を 0 にする。
-3. 起動するスロットを選ぶ（`boot_select_slot()`）。
-   - control record が有効ならその優先スロット、無効なら有効なスロットのうち generation が新しいほうを選ぶ。選んだスロットが無効なら、もう一方を試す。
-   - 選んだスロットが PENDING で、すでに 3 回以上起動を試していたら、もう一方の CONFIRMED のスロットへ戻す（ロールバック）。戻せるスロットがなければ起動しない。
-4. PENDING のスロットを起動するときは、control record の試行回数を 1 増やす。
-5. そのスロットへジャンプする。有効なスロットがなければエラー LED を点けて停止する。
-
-スロットが有効とみなされるのは、次をすべて満たすときである（`boot_slot_is_valid()`）。
-
-- magic `OFW1`、format version、record size が一致する
-- slot と image base がそのスロットのもので、image size が 8 バイト以上 224 KB 以下
-- state が CONFIRMED（起動判定では PENDING も可）
-- metadata の CRC32C が一致する
-- 初期 MSP が SRAM1 か CCMRAM の中で、8 バイト境界に揃っている
-- Reset_Handler が Thumb アドレスで、イメージの範囲内にある
-- イメージ全体の CRC32C が一致する
+検証・スロット選択・CPU状態の引継ぎ・安全IOの実装は[Mainブートローダー実装](https://github.com/ibis-ssl/G474_Orion_main/blob/main/doc/bootloader.md)で管理する。
 
 ## UART 更新（OFW1）
 
@@ -63,37 +44,8 @@ CM4 側のツールは `cm4/firmware/main_ab_updater.py`。
 - bootloader では通常の走行制御を開始しない。
 - 更新開始から通常アプリへの切り替えまで、ブザーを停止状態に保つ。Main 自身の更新中だけでなく、CAN ノードの更新を中継している間も同じである。
 - SWD によるデバッグ接続を維持する。
-- 起動するスロットの検証中と、起動できるスロットがないときは [起動判定](#起動判定) に従って LED で状態を示す。
+- 起動するスロットの検証中と、起動できるスロットがないときは [起動と確定の契約](#起動と確定の契約) に従って LED で状態を示す。
 
-## ビルド
+## 開発・導入手順
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\Script\build_bootloader.ps1 -Rebuild
-powershell -NoProfile -ExecutionPolicy Bypass -File .\Script\build_slot_a.ps1 -Configuration Debug -Rebuild
-```
-
-`build_slot_a.ps1` は Slot A のベクタと領域を検査し、`.bin` から CRC32C 付きの metadata を生成する。A/B 両方を作るときは `build_slot_b.ps1` を使う（[Orion：STM 概要](orion_overview.md#ビルドと書込み)）。
-
-## 初回導入
-
-最初に dry-run し、Flash 全体、CRC32C、Option Bytes を退避する。
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\Script\install_main_bootloader.ps1 -Configuration Debug
-```
-
-出力された backup と IO 表を確認したあとでだけ、明示的に `-Execute` を付ける。
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\Script\install_main_bootloader.ps1 -Configuration Debug -Execute
-```
-
-`-Execute` を付けなければ、Flash への書込みもリセットも行わない。初回導入が終わるまでは、既存の `flash.ps1` を使わない。
-
-導入後に ST-Link で Slot A を更新するときは、先に `build_slot_a.ps1` を実行してから、明示的に次を使う。
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\Script\flash.ps1 -Configuration Debug -BootloaderInstalled
-```
-
-bootloader 領域の書込み保護（WRP）はまだ設定していない。
+ビルド、初回導入、ST-Linkによる復旧・書込み、WRPの運用は[Main側の導入手順](https://github.com/ibis-ssl/G474_Orion_main/blob/main/doc/bootloader.md)を参照する。CM4からの更新は[MCU更新](../common/firmware_update.md)の給電順序と更新契約に従う。
