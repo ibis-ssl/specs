@@ -9,16 +9,16 @@ AI PC（crane） → CM4 → 機種別 Main → 車輪・周辺機器
               位置指令を速度指令へ変換
 ```
 
-CM4 は mode 4 の位置指令を受けると位置制御ループを閉じ、mode 3 の速度指令を Main へ送る。コマンドのレイアウトとフィールドの意味は [制御パケット](control_packet.md)、Orion と Atlas の STM 側の入口はそれぞれ [Orion 概要](../stm/orion_overview.md) と [Atlas の記載状況](../stm/overview.md#atlas) を参照。
+CM4 は mode 4 の位置指令を受けると位置制御ループを閉じ、mode 3 の速度指令を Main へ送る。コマンドのレイアウトとフィールドの意味は [制御パケット](control_packet.md)、Orion と Atlas の STM 側の入口はそれぞれ [Orion 概要](../stm/orion_overview.md) と [Atlas の記載状況](../stm/atlas_overview.md) を参照。
 
 ## CM4 と Main の通信
 
 | 機種 | 物理通信 | 状況・参照先 |
 |---|---|---|
 | Orion | UART | 現行実装。[CM4 通信の設定と受信・送信処理](../stm/orion_board_spec.md#cm4-との通信) |
-| Atlas | SPI | 採用予定。[記載状況](../stm/overview.md#atlas) |
+| Atlas | SPI | 採用予定。[記載状況](../stm/atlas_overview.md) |
 
-送信内容は共通の [CM4→Main パケット](control_packet.md#cm4main-パケット72-バイト) に従う。Atlas の SPI の転送手順はこの文書群には未記載であり、現行の Orion 用 UART ブリッジの対応範囲とは区別する。
+OrionのUART指令は[CM4→Mainパケット](control_packet.md#cm4main-パケット72-バイト)に従う。4WSのSPI転送単位は[設計案](../proposals/control_modes.md)で扱う。Atlas の SPI の転送手順はこの文書群には未記載であり、現行の Orion 用 UART ブリッジの対応範囲とは区別する。
 
 ## Orion の機能構成
 
@@ -64,22 +64,24 @@ flowchart LR
 
 ## 機体番号とネットワーク
 
-以下は現行 CM4 実装の機体番号とネットワーク設定である。フィードバックの経路と CM4 側の UART デバイスは Orion で確認したものを示す。
+以下は現行 CM4 実装の機体番号とネットワーク設定である。フィードバックの経路と機器間の通信は Orion で確認したものを示す。
 
-この文書群では、**機体番号 `N`** をロボット ID（0〜10）の意味で使う。CM4 の IP は `192.168.20.(100 + N)` である。CM4 上の各プロセスは `wlan0` の IP の末尾オクテット（`100 + N`）から `N` を求める。`ai_cmd_v2.out` は、求めた `N` が 0〜10 の範囲外なら起動を中止する。ホストツールの走査範囲はこれより広い（`host-launcher` は `.100`〜`.112`、`cm4-fleet` は既定で `N` = 0〜12）。
+機体番号`N`は制御対象のロボットID（0～10）を表し、CM4のIPは`192.168.20.(100 + N)`とする。CM4内でのID検出とホストツールの走査範囲は[CM4実装文書](https://github.com/ibis-ssl/Orion_CM4/blob/main/doc/overview.md)を参照する。
 
 | 用途 | 宛先 | 方向・形式 |
 |---|---|---|
 | 制御指令 | `192.168.20.(100 + N):12345` | crane → CM4、UDP ユニキャスト 65 B（[制御パケット](control_packet.md#機体別の制御パケット65-バイト)） |
 | 位置制御設定 | `192.168.20.(100 + N):12350` | crane → CM4、UDP ユニキャスト 28 B（[位置制御設定パケット](config_packet.md)） |
-| CM4 制御 API | `http://192.168.20.(100 + N):8000` | ホスト → CM4、HTTP（[CM4 概要](../cm4/overview.md#制御-api)） |
-| カメラ API | `http://192.168.20.(100 + N):8001` | ホスト → CM4、HTTP（[カメラ](../cm4/camera.md)） |
+| CM4 制御 API | `http://192.168.20.(100 + N):8000` | ホスト → CM4、HTTP（[CM4制御API](https://github.com/ibis-ssl/Orion_CM4/blob/main/doc/overview.md)） |
+| カメラ API | `http://192.168.20.(100 + N):8001` | ホスト → CM4、HTTP（[カメラAPI](https://github.com/ibis-ssl/Orion_CM4/blob/main/doc/camera.md)） |
 | カメラ座標 | `224.5.10.(100 + N):(5100 + N)` | CM4 → ホスト、UDP multicast、文字列 |
 | robot feedback | `224.5.20.(100 + N):(50100 + N)` | CM4 → crane・ホスト、UDP multicast 128 B（[フィードバックパケット](feedback_packet.md)） |
-| robot feedback（CM4 内） | `127.0.0.1:(50100 + N)` | `robot_feedback.out` → `ai_cmd_v2.out`、UDP ユニキャスト 128 B |
-| ローカルカメラ（CM4 内） | `127.0.0.1:8890` | `cam_server_v3` → `ai_cmd_v2.out`、UDP 7 B |
-| Orion の CM4 ↔ Main | `/dev/serial0` | [通信設定](../stm/orion_board_spec.md#cm4-との通信)、[指令](control_packet.md#cm4main-パケット72-バイト)・[テレメトリ](feedback_packet.md) の配置を参照 |
+| Orion の CM4 ↔ Main | UART | [通信設定](../stm/orion_board_spec.md#cm4-との通信)、[指令](control_packet.md#cm4main-パケット72-バイト)・[テレメトリ](feedback_packet.md) の配置を参照 |
 
 例：機体番号 10 の CM4 は `192.168.20.110`。feedback は `224.5.20.110:50110`、カメラ座標は `224.5.10.110:5110` に出る。
 
 シミュレーション時のポートは [シミュレーション](../pc/simulation.md#ポート) を参照。
+
+## CM4内の通信
+
+UARTデバイス、feedbackのloopback転送、ローカルカメラUDPはCM4 repo内の構成であり、[ブリッジ](https://github.com/ibis-ssl/Orion_CM4/blob/main/doc/bridge.md)と[カメラ](https://github.com/ibis-ssl/Orion_CM4/blob/main/doc/camera.md)を参照する。未実装の[共通状態パケット](../proposals/cm4_status_packet.md)は現行のポート一覧へ含めない。

@@ -2,39 +2,39 @@
 
 AI（crane）から CM4 を経由して Main へ送る指令の形式と、各フィールドの意味をまとめる。コマンドの定義は Orion（4 輪オムニホイール）と Atlas（4 輪ステアリング）で共通である。
 
-経路は `crane →(Wi-Fi UDP 65 B)→ CM4 →(機種別の物理通信)→ Main`。中身は 64 バイトの `RobotCommandSerializedV2` である。CM4 から送るパケットの配置は共通とし、物理通信方式と採用状況は [システム構成](system_overview.md#cm4-と-main-の通信)を参照。
+経路は `crane →(Wi-Fi UDP 65 B)→ CM4 →(機種別の物理通信)→ Main`。中身は 64 バイトの `RobotCommandSerializedV2` である。CM4 から送るパケットの配置は共通とし、物理通信方式と採用状況は [システム構成](system_overview.md)を参照。
 
 以下の G474 におけるフィールドの利用、受信処理、接続判定、フィードバックの説明は、`G474_Orion_main` で確認した Orion の実装を指す。UART の物理設定と `FWVR` / `FWUP` の受信処理も Orion の記録で、Atlas の STM 側の実装詳細は未記載である。
 
-## 正本と一致検査
+## 定義と実装の参照先
 
-`RobotCommandSerializedV2` のレイアウトの正本は crane の `crane_sender/include/crane_sender/robot_packet.h`。ほかのリポジトリは次のように対応している。レイアウトは影響範囲が広いので、互換を保ち、できるだけ変えない。
+パケットのレイアウト・符号化・フィールドの意味はこの文書を正本とする。各リポジトリのヘッダとデコーダはこの契約を実装する。
 
-| リポジトリ | ファイル | 状態 |
-|---|---|---|
-| crane | `crane_sender/include/crane_sender/robot_packet.h` | **正本**（byte 0..37 を定義） |
-| Orion_CM4 | `cm4/bridge/robot_packet.h` | byte 0..37 が一致 |
-| framework | `src/simulator/ibis_protocol.h` | 一致 |
-| G474_Orion_main | `Core/Inc/robot_packet.h` | byte 0..27 だけを定義（mode 3 のみ）。28..63 は使わない |
+| 実装 | 主な参照先 |
+|---|---|
+| crane | `crane_sender/include/crane_sender/robot_packet.h` |
+| CM4 | `cm4/bridge/robot_packet.h`、`packet_codec.py` |
+| OrionMain | `Core/Inc/robot_packet.h` |
+| framework | `src/simulator/ibis_protocol.h` |
 
-`cm4/bridge/robot_packet_layout_test.cpp` は、byte 0..37 のすべてのオフセット、`ControlMode`、`FlagAddress` を `static_assert` で固定する。さらにゴールデンベクタで量子化の挙動（丸めずに切り捨てる）まで検査する。`cm4/build.sh` と CI から実行されるので、`robot_packet.h` を編集したら必ず通すこと。
+CM4の一致検査・ビルド・テストの実行方法は[CM4開発文書](https://github.com/ibis-ssl/Orion_CM4/blob/main/doc/development.md)に置く。他リポジトリの対応版を含む接続条件は[連携条件](../pc/crane_integration.md)を参照する。
 
 ## 機体別の制御パケット（65 バイト）
 
-送信側は機体ごとに 1 データグラム 65 バイトを、その機体の CM4 の `192.168.20.(100 + N):12345` へユニキャストで送る（`N` は [機体番号](system_overview.md#機体番号とネットワーク)）。
+送信側は機体ごとに 1 データグラム 65 バイトを、その機体の CM4 の `192.168.20.(100 + N):12345` へユニキャストで送る（`N` は [機体番号](system_overview.md)）。
 
 ```text
-byte 0    : robot_id（0..10）
+byte 0    : CHECK_COUNTER（指令本体byte 1と同じ値）
 byte 1..64: RobotCommandSerializedV2（64 バイト）
 ```
 
 - 複数の機体へ送るときは、各機体の IP へ個別にデータグラムを送る。
-- 受信側（`ai_cmd_v2.out`）は次のパケットを採用しない：長さが 65 バイトでないもの、`robot_id` が自機と違うもの、64 バイトのコマンドがすべてゼロのもの。
+- 受信側（`ai_cmd_v2.out`）は次のパケットを採用しない：長さが 65 バイトでないもの、先頭CHECK_COUNTERが指令本体byte 1と一致しないもの、64 バイトのコマンドがすべてゼロのもの。
 - 使用中のコマンドでも byte 28..31 と 38..63 はゼロとは限らない。受信側は予約領域がゼロであることを前提にしない。
 
-GUI_Qt の送信実装（Qt Communication Tester）もこの 65 バイト形式で mode 3 を送る。mode 4 の位置指令を送る側は、同じ外枠で下記の mode 4 フィールドを設定する。
+送信側はこの65バイト形式を満たす必要がある。mode 4 の位置指令を送る側は、同じ外枠で下記の mode 4 フィールドを設定する。
 
-crane の送信器もこの 65 バイト形式で、指令を出す機体ごとに個別に送る（[crane との連携](../pc/crane_integration.md#送信crane_sender)）。
+機体IDはデータグラムに含めない。実機は宛先IP、simは機体別の受信ポートで識別する（[連携条件](../pc/crane_integration.md)）。
 
 ## RobotCommandSerializedV2（64 バイト）
 
@@ -79,7 +79,7 @@ crane は mode 3 で送るときも `TARGET_GLOBAL_POS` に現在位置を、`TE
 - 「float, range `R`」のフィールドは `convertFloatToTwoByte(value, R)` で 2 バイトにする。計算は `(uint16_t)(32767.f * (value / R) + 32767.f)` で、上位バイトが先。
   - range `32.767` の量子化幅は約 1 mm（1 mm/s）、range `M_PI` は約 0.0001 rad。
   - **丸めずに切り捨てる。** `roundf()` を足すと crane と 1 LSB ずれ、レイアウト検査テストで検出される。
-  - 範囲外の値は ±range にクランプする。crane は `std::cout` に警告を出す。CM4 は制御ループで毎周期呼ぶので警告は出さず、クランプ回数を `robotPacketClampCount()` で数えてデバッグ表示にまとめて出す。
+  - 範囲外の値は ±range にクランプする。crane は `std::cout` に警告を出す。CM4側の診断表示と制御計算は[実装文書](https://github.com/ibis-ssl/Orion_CM4/blob/main/doc/position_control.md)を参照する。
 - `kick_power` と `dribble_power` は `value * 20` を 1 バイトに入れる。
 - `latency_time_ms` と `elapsed_time_ms_since_last_vision` は素の `uint16_t`。crane は 65535 で飽和させてから入れる。
 
@@ -90,7 +90,7 @@ range 付きの 2 バイトのフィールドをゼロ埋めすると、`0.0` �
 - `bytearray(64)` のままのテストパケットは、すべてのフィールドが `-32.767` になる。使わないフィールドも `0.0` を明示的に符号化して埋めること。
 - byte 18..21 は素の `uint16` なので、ゼロ埋めすると正しく `0` になる。同じパケットに 2 種類の符号化が混在している点に注意する。
 - テストでは FLAGS の bit0 を立てること。立て忘れるとロボットは動かない。
-- CM4 の `position_controller` は `|v| >= 32` と NaN を「未設定」として扱う（[位置制御](../cm4/position_control.md#未設定値の扱い)）。
+- CM4の位置制御は異常な目標・現在位置で停止する（[位置制御](../cm4/position_control.md)）。
 
 ## 各フィールドの使われ方
 
@@ -143,20 +143,17 @@ crane の ROS メッセージ（`crane_msgs/msg/RobotCommand.msg`）の制御モ
 
 ## CM4→Main パケット（72 バイト）
 
-以下のパケット配置は Orion と Atlas で共通である。物理通信の速度・転送手順は機種別に扱い、Orion の接続設定は [基板の対外仕様](../stm/orion_board_spec.md#cm4-との通信)を参照。
+以下はOrionMain向けUARTフレームである。4WSのSPI転送単位は[設計案](../proposals/control_modes.md)で扱う。Orionの接続設定は [基板の対外仕様](../stm/orion_board_spec.md#cm4-との通信)を参照。
 
 | byte | 内容 |
 |---|---|
 | `0` | ヘッダ `0xFE`（コマンドの `HEADER` を上書きしたもの） |
 | `1..63` | `RobotCommandSerializedV2` の byte 1..63 |
-| `64..65` | ローカルカメラ x（big-endian） |
-| `66..67` | ローカルカメラ y（big-endian） |
-| `68..69` | ローカルカメラ radius（big-endian） |
-| `70` | ローカルカメラ fps |
+| `64..70` | 未定義領域。CM4は毎フレーム0で初期化し、受信側は意味を持たせない |
 | `71` | チェックサム：byte 0..70 の総和 `& 0xFF` |
 
-- Orion の UART の送信時間と占有率は [UART 占有率](../stm/orion_board_spec.md#uart-占有率)を参照。
-- カメラ値の出どころと、途絶したときの扱いは [ブリッジ](../cm4/bridge.md#ローカルカメラ情報の挿入) を参照。
+- Orion の UART の送信時間と占有率は [UART 占有率](../stm/orion_uart_cm4.md#uart-占有率)を参照。
+- ローカルカメラ値はCM4内で扱い、このUARTフレームには含めない。CM4内の受信処理は[カメラ実装](https://github.com/ibis-ssl/Orion_CM4/blob/main/doc/camera.md)を参照。
 - Orion では、byte 1..4 が `FWVR` または `FWUP` のフレームは、制御指令ではなくファームウェアのバージョン照会・更新要求として扱われる（[MCU ファームウェア更新](firmware_update.md)）。
 
 ## CHECK_COUNTER
@@ -174,3 +171,7 @@ crane の ROS メッセージ（`crane_msgs/msg/RobotCommand.msg`）の制御モ
 | 位置制御（mode 4） | **CM4 が採番する**（送信ごとに 0..200 を巡回） | `--tx-rate-hz` の時間ゲート |
 
 位置制御の経路では、CM4 が生きていれば crane が落ちていても `check_counter` は変化し続ける。したがって G474 の `connected_ai` は crane が生きていることを意味しない。crane が落ちたときの停止は CM4 側で行う（[停止判定](safety_stop.md)）。
+
+## 未実装の拡張
+
+mode 5～8の配置、4WSへのSPI転送、ボール基準制御は[設計案](../proposals/control_modes.md)に分離する。現行のCM4が位置制御として処理するのはmode 4で、OrionMainへmode 3を生成する。未対応モードの拒否・安全停止は実装済みの保証ではない。
