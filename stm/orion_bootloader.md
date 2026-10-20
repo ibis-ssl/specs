@@ -1,6 +1,6 @@
 # Orion：ブートローダー（Main 基板）
 
-Orion（4輪オムニホイール）の Main 基板（STM32G474）は、User Flash の先頭に基板専用のアプリケーションブートローダー（`Bootloader/`）を置き、通常アプリを A/B の 2 スロットで持つ。CM4 からの UART 更新、PENDING と CONFIRM、起動に失敗したときのロールバックを担当する。以下はOrionの更新ツールとMainが共有するイメージ配置・起動状態・更新中の安全動作の契約である。更新手順の全体は [MCU ファームウェア更新](../common/firmware_update.md)、機種別の入口は [STM 概要](overview.md) を参照。
+Orion（4輪オムニホイール）の Main 基板（STM32G474）は、User Flash の先頭に基板専用のアプリケーションブートローダー（`Bootloader/`）を置き、通常アプリを A/B の 2 スロットで持つ。CM4 からの UART 更新、PENDING と CONFIRM、起動に失敗したときのロールバックを担当する。以下はOrionの更新ツールとMainが共有するイメージ配置・起動状態・更新中の安全動作の契約である。更新手順の全体は [MCU ファームウェア更新](../common/firmware_update.md)、機種別の入口は [STM 概要](../README.md#orionの対外仕様) を参照。
 
 STM32 の System Memory bootloader、BOOT0 による ROM boot、ハードウェアのバンクスワップ（`BFB2`）は使わない。
 

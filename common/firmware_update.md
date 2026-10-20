@@ -73,4 +73,4 @@ Main の各スロットのイメージ先頭 `+0x400` には、`FWVR` magic と 
 2. Main は自身の両スロットを直接読み、[対象とノード](#対象とノード) に示す CAN ノードへ照会する。Power への照会は両バスに送る。
 3. 応答のないノードにだけ 40 ms 間隔で再照会し、250 ms 後に 6 対象の build ID と image CRC32C を 60 バイトの応答にまとめて CM4 へ返す。
 
-`fw_version_reader.py` は期待するバイナリを指定すると、実機の内容と比べた結果も表示する。Main のビルドスクリプトは、ビルドごとに Git hash と dirty 状態を `Script/Logs/Build/` に JSON で保存する（[Orion 概要](../stm/orion_overview.md)）。
+`fw_version_reader.py` は期待するバイナリを指定すると、実機の内容と比べた結果も表示する。Main のビルドスクリプトは、ビルドごとに Git hash と dirty 状態を `Script/Logs/Build/` に JSON で保存する（[Orion 概要](https://github.com/ibis-ssl/G474_Orion_main/blob/main/doc/overview.md)）。

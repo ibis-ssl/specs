@@ -58,7 +58,7 @@ mode 4 を受けたとき、CM4 の `position_controller` は次のどれかで�
 | crane のビジョンがこのロボットを最後に捉えてから時間が経ちすぎた | `VisionStale` | 500 ms（G474 の定数と同じ。500 は動き、501 で止まる） |
 | 目標位置・現在位置が物理的にありえない値 | `InvalidCommand` | — |
 
-安全停止のときは `KICK_POWER` / `DRIBBLE_POWER` / `ENABLE_CHIP` も落とす。古いキック指令を撃ち続けないためである。判定は `position_controller` の中にあるので、実機のバイナリと `cm4_sim` が同じ経路を通る。詳細は [位置制御](../cm4/position_control.md) を参照。
+安全停止のときは `KICK_POWER` / `DRIBBLE_POWER` / `ENABLE_CHIP` も落とす。古いキック指令を撃ち続けないためである。判定は `position_controller` の中にあるので、実機のバイナリと `cm4_sim` が同じ経路を通る。詳細は [位置制御](https://github.com/ibis-ssl/Orion_CM4/blob/main/doc/position_control.md) を参照。
 
 ### ビジョンの 2 条件を CM4 でも見る理由
 

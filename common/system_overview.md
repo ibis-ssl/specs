@@ -1,6 +1,6 @@
 # システム構成
 
-Orion（4 輪オムニホイール）と Atlas（4 輪ステアリング）の共通の制御経路と、Orion で確認した機能構成をまとめる。CM4 から送るパケット定義は共通で、物理通信、Main のハードウェア、車輪への指令変換、フィードバック、停止動作、MCU 更新は機種ごとに扱う（[STM 概要](../stm/overview.md)）。
+Orion（4 輪オムニホイール）と Atlas（4 輪ステアリング）の共通の制御経路と、Orion で確認した機能構成をまとめる。CM4 から送るパケット定義は共通で、物理通信、Main のハードウェア、車輪への指令変換、フィードバック、停止動作、MCU 更新は機種ごとに扱う（[機種別の対外仕様](../README.md#orionの対外仕様)）。
 
 ## 共通の制御経路
 
@@ -9,16 +9,20 @@ AI PC（crane） → CM4 → 機種別 Main → 車輪・周辺機器
               位置指令を速度指令へ変換
 ```
 
-CM4 は mode 4 の位置指令を受けると位置制御ループを閉じ、mode 3 の速度指令を Main へ送る。コマンドのレイアウトとフィールドの意味は [制御パケット](control_packet.md)、Orion と Atlas の STM 側の入口はそれぞれ [Orion 概要](../stm/orion_overview.md) と [Atlas の記載状況](../stm/atlas_overview.md) を参照。
+CM4 は mode 4 の位置指令を受けると位置制御ループを閉じ、mode 3 の速度指令を Main へ送る。コマンドのレイアウトとフィールドの意味は [制御パケット](control_packet.md)、Orionの内部実装・操作は[Main開発文書](https://github.com/ibis-ssl/G474_Orion_main/blob/main/doc/overview.md)を参照。Atlasの未記載範囲は下記に示す。
 
 ## CM4 と Main の通信
 
 | 機種 | 物理通信 | 状況・参照先 |
 |---|---|---|
 | Orion | UART | 現行実装。[CM4 通信の設定と受信・送信処理](../stm/orion_board_spec.md#cm4-との通信) |
-| Atlas | SPI | 採用予定。[記載状況](../stm/atlas_overview.md) |
+| Atlas | SPI | 採用予定。詳細は下記の記載範囲を参照 |
 
 OrionのUART指令は[CM4→Mainパケット](control_packet.md#cm4main-パケット72-バイト)に従う。4WSのSPI転送単位は[設計案](../proposals/control_modes.md)で扱う。Atlas の SPI の転送手順はこの文書群には未記載であり、現行の Orion 用 UART ブリッジの対応範囲とは区別する。
+
+## Atlasの記載範囲
+
+Atlasは4輪ステアリング機体で、CM4とのSPI通信を採用予定とする。転送手順・通信条件、Mainの制御周期・起動・保護条件、駆動・操舵への変換とオドメトリ、停止動作、FW更新・導入・診断は対象実装と未照合であり、現行仕様として定義していない。Orionの対外仕様から推測しない。未実装の通信・制御案は[設計案](../proposals/control_modes.md)で扱う。
 
 ## Orion の機能構成
 
@@ -44,8 +48,8 @@ flowchart LR
 | 機器 | 役割 | 主な接続 |
 |---|---|---|
 | AI PC（crane） | 機体ごとの指令（位置指令 mode 4、または速度指令 mode 3）を送る。CM4 経由で届くテレメトリを受ける。 | Wi-Fi、UDP |
-| CM4（Raspberry Pi CM4） | 指令を受け、位置制御と Main への転送を行う。Main のテレメトリを UDP で配る。ローカルカメラでボールを検出する。MCU のファームウェア更新を指示する。詳細は [cm4/](../cm4/overview.md)。 | Wi-Fi、UART |
-| Main 制御基板（STM32G474） | 姿勢とオドメトリの更新、速度と車輪角度の制御、停止判定、各機能基板への指令生成を行う。IMU と操作スイッチを読む。周期と通信設定は [基板仕様](../stm/orion_board_spec.md)、操作は [Orion 概要](../stm/orion_overview.md)。 | CM4、IMU、操作スイッチ、CAN |
+| CM4（Raspberry Pi CM4） | 指令を受け、位置制御と Main への転送を行う。Main のテレメトリを UDP で配る。ローカルカメラでボールを検出する。MCU のファームウェア更新を指示する。詳細は [CM4開発文書](https://github.com/ibis-ssl/Orion_CM4/blob/main/doc/overview.md)。 | Wi-Fi、UART |
+| Main 制御基板（STM32G474） | 姿勢とオドメトリの更新、速度と車輪角度の制御、停止判定、各機能基板への指令生成を行う。IMU と操作スイッチを読む。周期と通信設定は [基板仕様](../stm/orion_board_spec.md)、操作は [Orion 概要](https://github.com/ibis-ssl/G474_Orion_main/blob/main/doc/overview.md)。 | CM4、IMU、操作スイッチ、CAN |
 | 右 BLDC 基板 | 右前・右後の車輪モータを駆動し、回転速度、エンコーダ角度、電流、温度などを返す。 | CAN |
 | 左 BLDC 基板 | 左後・左前の車輪モータを駆動し、同様のフィードバックを返す。 | CAN |
 | Sub 基板・センサ系 | Main にボール検出とマウスセンサの情報を返す。Main はドリブラーへの指令も送る。センサとドリブラーの基板上の実装位置は確認していない。 | CAN |
@@ -56,9 +60,9 @@ flowchart LR
 ## Orion の制御と情報の流れ
 
 1. crane は機体ごとの指令を Wi-Fi で CM4 へ送る（[制御パケット](control_packet.md)）。
-2. CM4 は位置指令なら位置制御ループを閉じ（[位置制御](../cm4/position_control.md)）、共通パケットを Orion の UART で Main へ送る。
+2. CM4 は位置指令なら位置制御ループを閉じ（[位置制御](https://github.com/ibis-ssl/Orion_CM4/blob/main/doc/position_control.md)）、共通パケットを Orion の UART で Main へ送る。
 3. Main は [制御周期](../stm/orion_board_spec.md#制御周期) ごとに指令、モードスイッチ、通信状態を確認する。IMU の yaw、車輪エンコーダ、マウスセンサ、外部ビジョンを姿勢と位置の推定に使う。
-4. Main は目標並進速度に加速度制限をかけ、旋回指令と合わせて 4 輪の目標回転に変換する。各輪の角度と回転速度のフィードバックから出力を計算し、CAN で左右の BLDC 基板へ送る（[Orion 速度制御](../stm/orion_speed_control.md)）。
+4. Main は目標並進速度に加速度制限をかけ、旋回指令と合わせて 4 輪の目標回転に変換する。各輪の角度と回転速度のフィードバックから出力を計算し、CAN で左右の BLDC 基板へ送る（[Orion 速度制御](https://github.com/ibis-ssl/G474_Orion_main/blob/main/doc/hw_control.md)）。
 5. キッカーとドリブラーは、指令とボール検出をもとに制御する。Main は電源系、モータ、エラーの状態を CAN で受け、テレメトリにして CM4 へ返す（[フィードバックパケット](feedback_packet.md)）。
 6. 通信途絶やビジョン喪失のときは、走行出力を止める（[停止判定](safety_stop.md)）。
 
