@@ -12,7 +12,10 @@ AI（crane、`ibis-ssl/crane`）とロボットの境界をまとめる。パケ
 - `elapsed_time_ms_since_last_vision` は `nanoseconds() / 1e6` を 0〜65535 に clamp してから `uint16_t` にする。world model からロボットを引けない例外時は 65535 を入れる（fail-closed）。
 - `latency_time_ms` も 65535 で飽和させる。
 - 位置制御設定パケット（28 B、version 2）を最大 1 秒に 1 回、ポート 12350 へ送る。float は memcpy でホストのバイト順（x86 では little endian）のまま入れる。
-- 現状の送信先は 715 B のブロードキャスト（[既知の不整合](#既知の不整合)）。`sim:=true` のときは `127.0.0.1` へ送る。
+- 指令は機体ごとに 65 B（`[robot_id][64 B]`）を 1 データグラムずつ送る。指令のない機体には送らない。ブロードキャストはしない。
+- 宛先はパラメータ `unicast_to_robot_ip` で切り替える。`sim:=false`（`true`）では機体 N の CM4 `192.168.20.(100 + N):12345` へ、`sim:=true`（`false`）では全機体を `target_address`（`127.0.0.1:12345`、`cm4_sim`）へ送る。
+- 送信は機体ごとに独立していて、1 台へ送れなくても他の機体への送信は続く。送れたかどうかは `/sent_robot_commands` の planning factor `SenderSent` に機体ごとに残る。
+- 位置制御設定パケットは、直近に指令を送った機体それぞれのポート 12350 へ送る。byte 5 は `0xFF`。シミュレーションでは宛先がすべて同じ `cm4_sim` なので 1 回だけ送る。
 
 ## 受信（crane_robot_receiver）
 
@@ -27,21 +30,12 @@ AI（crane、`ibis-ssl/crane`）とロボットの境界をまとめる。パケ
 
 照合の基準コミット（[README](../README.md#照合の基準)）の時点で、次が食い違っている。
 
-### 制御指令の転送方式
+### 715 B を前提にした受信側
 
-| | 方式 |
-|---|---|
-| 仕様（Orion_CM4 の実装） | 機体ごとに 65 B を `192.168.20.(100 + N):12345` へユニキャスト。設定パケットも機体ごとにユニキャスト |
-| crane の送信器（develop 最新を含む） | 11 台分（各 `[robot_id][64 B]`、指令のない機体はゼロ埋め）を連結した 715 B を `192.168.20.255:12345` へブロードキャスト。設定パケットも `192.168.20.255:12350` へブロードキャスト |
+crane の送信は 65 B のユニキャストに切り替えた（`cm4_sim` のイメージも `CM4_SIM_TAG=e03b0f6` に更新済み）。次の受信側は 715 B のままなので、crane から直接はつながらない。
 
-- 現行の CM4（`ai_cmd_v2.out`）は 65 B 以外のデータグラムを捨てるので、**この組み合わせでは実機に指令が届かない。** crane の送信器を 65 B ユニキャストに切り替える必要がある。
-- シミュレーションが今動いているのは、crane の compose が `cm4_sim` のイメージを `CM4_SIM_TAG=d7a2e07`（2026-09-15、Orion_CM4 がユニキャストに切り替えた `baa0442` より前）に固定しているからにすぎない。現行の `cm4_sim.out` も入力は 65 B なので、**crane 側を切り替えずにタグを上げると、シミュレーションも壊れる。**
-- crane の `docs/network.md` と `docs/cm4_position_control.md` もブロードキャストと書いている。
-
-### crane 側の文書の記述
-
-- `docs/cm4_position_control.md` は CM4 の位置制御を「1000 Hz の PID」と説明している。実機の `ai_cmd_v2.out` は 1 kHz でポーリングし、制御指令は `--tx-rate-hz`（既定 100 Hz）で送る。1000 Hz なのは `cm4_sim` の `--rate-hz` の既定値である。
-- crane の compose のコメントには「`crane_robot_receiver` は 50100 を直書きしている」とあるが、現在のポートはパラメータである（既定値は 50100+N のまま）。
+- framework の `simulator-cli` は 715 B しか受けない。crane は必ず `cm4_sim` を挟んでつなぐ（match-vs-tigers の compose にも `cm4_sim` を入れた）。
+- grSim の `IbisCommandReceiver` も 715 B を前提にしている。
 
 ### ホスト側デコーダ
 

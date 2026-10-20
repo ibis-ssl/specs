@@ -14,9 +14,6 @@ crane --UDP:12345 65B mode4--> cm4_sim.out --UDP:12346 715B mode3--> simulator-c
 - 機体ごとの 65 バイトの指令は、すべて同じ `cm4_sim.out` の受信アドレスへ送る。`cm4_sim.out` は先頭の ID で振り分ける。
 - `cm4_sim.out` から `simulator-cli` への出力は、11 台分（65 B × 11）を含む 715 バイト固定。
 
-> [!WARNING]
-> crane の送信器はまだ 715 B を送っているので、現行の `cm4_sim.out` とはそのままではつながらない。[crane との連携](crane_integration.md#制御指令の転送方式) を参照。
-
 ## 起動
 
 起動の順序は **simulator-cli → cm4_sim → crane**。
@@ -65,7 +62,7 @@ crane --UDP:12345 65B mode4--> cm4_sim.out --UDP:12346 715B mode3--> simulator-c
 
 イメージは `ghcr.io/ibis-ssl/orion-cm4-sim`。定義は Orion_CM4 の `cm4/Dockerfile`、push は `.github/workflows/cm4-sim-docker.yml`（main への push と `workflow_dispatch`。pull request ではビルドだけで push しない）。イメージに入るのは `cm4_sim.out` 1 本だけ（[CM4 概要](../cm4/overview.md#ビルド)）。
 
-crane は `docker/scenario/docker-compose.yaml`（プロファイルなし）と `docker/dev/docker-compose.yaml`（プロファイル `sim-erforce`）でこのイメージを使う。イメージは commit SHA（`CM4_SIM_TAG`）で固定している。更新するときは `CM4_SIM_TAG` で試してから既定値を上げる。
+crane は `docker/scenario/docker-compose.yaml`（プロファイルなし）、`docker/dev/docker-compose.yaml`（プロファイル `sim-erforce`）、`docker/match-vs-tigers/docker-compose.yaml` でこのイメージを使う。イメージは commit SHA（`CM4_SIM_TAG`）で固定している。更新するときは `CM4_SIM_TAG` で試してから既定値を上げる。
 
 compose との契約は次の 3 つで、崩すと一括起動が壊れる。
 
