@@ -1,42 +1,24 @@
-# crane との連携
+# AI・CM4・Mainの連携条件
 
-AI（crane、`ibis-ssl/crane`）とロボットの境界をまとめる。パケットの形式は [制御パケット](../common/control_packet.md)、[位置制御設定パケット](../common/config_packet.md)、[フィードバックパケット](../common/feedback_packet.md) にあり、ここでは crane 側の実装がそれをどう扱っているか、どこが食い違っているかを書く。
+この文書は各リポジトリの境界で満たす契約をまとめる。craneのROSパラメータ・launch構成・内部クラスの操作はcraneリポジトリ、CM4のCLIと診断は[Orion_CM4](https://github.com/ibis-ssl/Orion_CM4/blob/main/doc/overview.md)で管理する。
 
-## 送信（crane_sender）
+## 送信側の要件
 
-実装は `crane_sender/src/ibis_sender_node.cpp`、レイアウトは `crane_sender/include/crane_sender/robot_packet.h`（[正本](../common/control_packet.md#正本と一致検査)）。
+- 指令は[65バイト制御パケット](../common/control_packet.md)として機体別に送る。先頭はCHECK_COUNTERで、機体IDではない。
+- 実機の宛先は[ネットワーク仕様](../common/system_overview.md)、simの宛先は[シミュレーション契約](simulation.md#ポート)に従う。
+- mode 4はCM4で位置制御し、OrionMainへはmode 3を渡す。
+- 最後にビジョンで捉えてからの経過時間と遅延は、uint16の範囲に飽和させて符号化する。未知の観測を経過時間0として送らない。
+- 位置制御ゲインは[設定パケット](../common/config_packet.md)を使う。指令本体の予約領域へ相乗りさせない。
+- 指令と設定を複数機体へ送る場合は、それぞれの宛先へ送る。設定はsimの共通プロセスに対しては1回でよい。
 
-- `HEADER` には `0x00` を入れる。
-- `check_counter` は `RobotCommands` メッセージ 1 通ごとに進め、全ロボット共通の値を入れる（[CHECK_COUNTER](../common/control_packet.md#check_counter)）。
-- ROS メッセージの `position_target_mode` が空でなければ wire の mode 4、それ以外は mode 3 で送る。mode 3 のときも `TARGET_GLOBAL_POS` に現在位置、`TERMINAL_VELOCITY` に 0 を入れる。
-- `elapsed_time_ms_since_last_vision` は `nanoseconds() / 1e6` を 0〜65535 に clamp してから `uint16_t` にする。world model からロボットを引けない例外時は 65535 を入れる（fail-closed）。
-- `latency_time_ms` も 65535 で飽和させる。
-- 位置制御設定パケット（28 B、version 2）を最大 1 秒に 1 回、ポート 12350 へ送る。float は memcpy でホストのバイト順（x86 では little endian）のまま入れる。
-- 指令は機体ごとに 65 B（`[robot_id][64 B]`）を 1 データグラムずつ送る。指令のない機体には送らない。ブロードキャストはしない。
-- 宛先はパラメータ `unicast_to_robot_ip` で切り替える。`sim:=false`（`true`）では機体 N の CM4 `192.168.20.(100 + N):12345` へ、`sim:=true`（`false`）では全機体を `target_address`（`127.0.0.1:12345`、`cm4_sim`）へ送る。
-- 送信は機体ごとに独立していて、1 台へ送れなくても他の機体への送信は続く。送れたかどうかは `/sent_robot_commands` の planning factor `SenderSent` に機体ごとに残る。
-- 位置制御設定パケットは、直近に指令を送った機体それぞれのポート 12350 へ送る。byte 5 は `0xFF`。シミュレーションでは宛先がすべて同じ `cm4_sim` なので 1 回だけ送る。
+## 受信側の要件
 
-## 受信（crane_robot_receiver）
+craneと生データデバッグツールは[共通feedback](../common/feedback_packet.md)の配置・単位を使う。位置、速度、yawのバイト位置を個別の旧定義から読み取らない。実機でもsimでもcraneはmulticastを受け、CM4内のunicast受信口を共有しない。
 
-実装は `crane_robot_receiver/src/robot_receiver_node.cpp`、レイアウトは `crane_robot_receiver/include/crane_robot_receiver/robot_feedback_protocol.hpp`。
+CM4のmode 4経路では指令カウンタをCM4が採番する。Mainが接続中であることだけではcraneの生存を判断できない。停止責務は[停止判定](../common/safety_stop.md)に従う。
 
-- 各機体の feedback を multicast `224.5.20.(100 + N):(50100 + N)` で受ける。グループとポートはパラメータで、ロボット ID もパラメータで明示的に渡す（ポート番号から逆算しない）。
-- 実機でもシミュレーションでも常に multicast で受ける。ソケットは `SO_REUSEADDR` と `SO_REUSEPORT` を付けて `0.0.0.0:port` に bind する。
-- byte 2 のチェックサムは検査しない（定義名は dummy）。
-- byte 4..7 の yaw は度として扱う。byte 44..51 は `ODOM_X/Y` と呼んでいるが、G474 の `vision_based_position_x/y` と同じフィールドである。byte 64..119 は 14 個のデバッグ用 float で、先頭（64..79）を `MOUSE_ODOM` と `MOUSE_VEL` として読む。
+## 対応版の確認
 
-## 既知の不整合
+送信器、CM4、Main、PCデコーダ、シミュレータを同じパケット契約へ揃える。設定パケットはサイズ・versionの完全一致、feedbackは共通配置・CRCが必要である。長さが同じでも配置が違う受信実装は適合しない。
 
-照合の基準コミット（[README](../README.md#照合の基準)）の時点で、次が食い違っている。
-
-### 715 B を前提にした受信側
-
-crane の送信は 65 B のユニキャストに切り替えた（`cm4_sim` のイメージも `CM4_SIM_TAG=e03b0f6` に更新済み）。次の受信側は 715 B のままなので、crane から直接はつながらない。
-
-- framework の `simulator-cli` は 715 B しか受けない。crane は必ず `cm4_sim` を挟んでつなぐ（match-vs-tigers の compose にも `cm4_sim` を入れた）。
-- grSim の `IbisCommandReceiver` も 715 B を前提にしている。
-
-### ホスト側デコーダ
-
-- `host/lib/feedback/packet.py` の `ball_detection` が byte 14 まで読む（[フィードバックパケット](../common/feedback_packet.md#既知の不整合host-側デコーダ)）。
+この文書は外部リポジトリへの配備済み状態を保証しない。各リポジトリの実装・結合試験・配布タグを確認する。4WSのSPIと共通状態パケットへの切替は[設計案](../proposals/README.md)であり、現行の接続条件へ混在させない。

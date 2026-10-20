@@ -1,68 +1,43 @@
-# Orion・Atlas ロボット ドキュメント
+# ロボットシステム共通仕様
 
-ibis の Orion（4 輪オムニホイール）と Atlas（4 輪ステアリング）の仕様書をまとめたリポジトリ。CM4 から送るパケット定義は共通とし、物理通信は Orion が UART（現行）、Atlas が SPI（採用予定）である。STM 側は外部連携・制御動作・運用に関わる仕様を機種ごとに記載する。現在の STM 実装、フィードバック、停止動作、MCU 更新の詳細は Orion の記録で、Atlas の詳細は未記載である。
+AI（crane）・CM4・Main・PC・シミュレータにまたがる通信契約と責務を管理する。パケットの配置・符号化・単位・適用機種・停止条件の正本はこのrepoに置く。機器内部に閉じる実装と操作の正本は、各実装repoの文書に置く。
 
-## 構成
+## システム共通仕様
 
-| ディレクトリ | 内容 | 対応するリポジトリ |
-|---|---|---|
-| [common/](common/) | 複数の層にまたがる仕様：共通コマンドと、適用機種を明記した構成・フィードバック・停止判定・FW 更新 | すべて |
-| [cm4/](cm4/) | CM4 上で動くブリッジ、位置制御、カメラ、セットアップ | `ibis-ssl/Orion_CM4` の `cm4/` |
-| [stm/](stm/) | 共通コマンドの入口と、Orion・Atlas の機種別 Main ファームウェア仕様 | Orion：`ibis-ssl/G474_Orion_main`。Atlas：未記載 |
-| [pc/](pc/) | ホスト PC のツール、フリート管理、crane やシミュレータとの連携 | `ibis-ssl/Orion_CM4` の `host/`、`ibis-ssl/crane`、framework |
+| 文書 | 定義する内容 |
+|---|---|
+| [システム構成](common/system_overview.md) | 機器の役割・機体番号・外部通信 |
+| [制御パケット](common/control_packet.md) | AI→CM4指令、CM4→OrionMainのUART枠、符号化、モード、CHECK_COUNTER |
+| [位置制御設定](common/config_packet.md) | AI→CM4のゲイン設定契約 |
+| [Main共通feedback](common/feedback_packet.md) | Main→CM4→PCの配置・CRC・同期・単位 |
+| [停止判定](common/safety_stop.md) | 各層の停止責務・タイムアウトと停止の意味 |
+| [MCU更新](common/firmware_update.md) | CM4・Main・CANノード間の更新契約と給電条件 |
+| [AI連携](pc/crane_integration.md) | 送受信側の適合条件と対応版の確認 |
+| [シミュレーション連携](pc/simulation.md) | crane・CM4相当・simulator-cli間の接続契約 |
+| [Mainとの通信](stm/cm4_interface.md) | 機種別の物理通信・対外仕様への入口 |
 
-### common/
+Orionは4輪オムニ機体で、OrionMain（STM32G474）とのUART経路を現行対象とする。4WSのSPI・各輪制御・ボール基準制御と共通状態パケットは[未実装の設計案](proposals/README.md)に分離する。`stm/`にあるAtlasの記載を、未照合の4WS実装への対応保証として扱わない。
 
-- [システム構成](common/system_overview.md)：制御機の役割、通信経路、機体番号、IP とポートの一覧
-- [制御パケット](common/control_packet.md)：`RobotCommandSerializedV2` と UDP・UART の枠、`check_counter`
-- [位置制御設定パケット](common/config_packet.md)：crane から CM4 へ送るゲイン設定（28 B）
-- [フィードバックパケット](common/feedback_packet.md)：Orion の G474 が送る 128 B のテレメトリ
-- [停止判定](common/safety_stop.md)：CM4 の停止指令と、Orion の停止動作・タイムアウト
-- [MCU ファームウェア更新](common/firmware_update.md)：Orion の Main と CAN ノードを CM4 から更新する手順
+## 実装文書への入口
 
-### cm4/
+| 担当repo | 管理する内容 |
+|---|---|
+| [Orion_CM4](https://github.com/ibis-ssl/Orion_CM4/blob/main/doc/overview.md) | CM4のプロセス・制御計算・カメラ・ビルド・設定・ホストツール・フリート管理 |
+| [G474_Orion_main](https://github.com/ibis-ssl/G474_Orion_main/blob/main/doc/overview.md) | Main内の制御演算・起動処理・ビルド・書込み・診断 |
+| [crane](https://github.com/ibis-ssl/crane) | AI内の送受信実装・ROS設定・起動 |
+| framework | simulator-cliの実装・物理モデル・起動方法は担当repoで管理 |
 
-- [概要](cm4/overview.md)：ディレクトリ、制御 API、ビルド、テスト
-- [ブリッジ](cm4/bridge.md)：`ai_cmd_v2.out` と `robot_feedback.out`
-- [位置制御](cm4/position_control.md)：`position_controller`
-- [カメラ](cm4/camera.md)
+`cm4/`、`pc/host_tools.md`、`pc/fleet.md`はCM4 repoの操作文書への参照ページであり、実装詳細を複製しない。
 
-### stm/
+## 文書の参照方向と更新ルール
 
-- [概要](stm/overview.md)：共通部分と機種別仕様の入口
-- [CM4 との通信](stm/cm4_interface.md)：共通パケットと機種別の通信方式
-- [Orion 概要](stm/orion_overview.md)：ビルドと書込み、モードスイッチ、LED、デバッグ UART
-- [Orion 基板の対外仕様](stm/orion_board_spec.md)：外部通信、制御周期、起動・校正、保護条件
-- [Orion 速度制御](stm/orion_speed_control.md)
-- [Orion ブートローダー](stm/orion_bootloader.md)
-- [Orion CM4 との UART 実装](stm/orion_uart_cm4.md)
-- [Orion 診断機能](stm/orion_diagnostics.md)
-- [Atlas 概要](stm/atlas_overview.md)：4 輪ステアリング。STM 側の詳細は未記載
+1. 共通仕様の規範はspecs内の文書が定義し、各repoの実装文書から参照する。コードや各repoの文書を共通定義の正本に指定しない。
+2. specsから各repoへのリンクは実装・操作の詳細へ進むための入口とする。各repoの全文をspecsへ複製しない。
+3. 共通インターフェイスを変更するときは、specsの作業ブランチで契約を更新し、関係repoの実装・文書・結合確認を揃える。
+4. モジュール内部だけの変更は担当repoで完結させる。共通契約への影響がある場合だけspecsを更新する。
+5. 現行仕様には現在の契約だけを書く。未実装案は`proposals/`、変更経緯・実機計測・過去の調査資料は各repoの作業ログ・履歴へ置く。
+6. 日本語・UTF-8で記載する。コードの参照はファイル名・シンボル名で示す。外部repoの適合や配備済み状態を、未確認のまま断定しない。
 
-### pc/
+## 実装照合の範囲
 
-- [ホスト PC 側ツール](pc/host_tools.md)
-- [フリート管理](pc/fleet.md)
-- [crane との連携](pc/crane_integration.md)：既知の不整合もここに書く
-- [シミュレーション](pc/simulation.md)：`cm4_sim`、Docker イメージ、シミュレータと実機の差
-
-## 文書のルール
-
-- この文書群を仕様の正本とする。`G474_Orion_main/doc` と `Orion_CM4/doc` にある同種の文書は旧版で、内容が食い違う場合はこちらが正しい。
-- 現在の仕様と、採用予定と明記した計画を扱う。過去の形式、変更の経緯、日付付きの計測結果は各リポジトリの作業ログに書く。未実装の計画を現行実装として書かない。
-- 1 つの事実は 1 か所にだけ書き、ほかの文書からはリンクする。たとえば `check_counter` は [制御パケット](common/control_packet.md#check_counter)、タイムアウトは [停止判定](common/safety_stop.md)、ポートは [システム構成](common/system_overview.md#機体番号とネットワーク) にだけ書く。
-- コードを参照するときは `file:line` ではなく、ファイル名と関数名・シンボル名で書く（行番号はすぐずれるため）。
-- 日本語・UTF-8 で書く。コードや設定との食い違いを見つけたら、実装を確かめて文書を直す。
-- CM4 から送るコマンドの定義は共通とし、STM 側の実装と動作は適用機種を明記する。Orion の確認結果を Atlas の仕様として扱わない。
-- 基板仕様には外部との通信、制御・保護の動作、操作・更新に必要な事項を記載する。IO 割り当て、周辺回路の設定、ロボット内の CAN フレーム ID などの内部実装は、各ファームウェアのリポジトリで管理する。
-
-## 照合の基準
-
-この文書群の既存実装の記載は、次のコミット時点のコードで確認している。STM 側の照合対象は Orion で、Atlas の STM 実装は未照合である。次に食い違いを調べるときは、ここからの差分を見る。
-
-| リポジトリ | ブランチ | コミット |
-|---|---|---|
-| G474_Orion_main | main | `154f89a` |
-| Orion_CM4 | main | `e03b0f6` |
-| crane | develop | `9d516f633` |
-| framework | ibis | `a52b6bd` |
+CM4の制御UDP外枠、feedback配置・CRC、シミュレータ入力、PCデコーダは`Orion_CM4`の`bc1a9af`時点のコードを照合対象とする。これは外部repoへの配備済み状態を示さない。Main・crane・frameworkはそれぞれの実装とこの契約の結合確認が必要である。

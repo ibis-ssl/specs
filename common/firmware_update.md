@@ -20,30 +20,18 @@ CM4 から、UART でつながった Main（STM32G474）を更新する。CAN �
 
 ## 更新順序
 
-1. 対象、イメージ、給電状態を確認する。UART の取り合いを避けるため `control_server.service` を止める。
+1. 対象、イメージ、給電状態を確認する。通常のUART利用を止め、更新ツールだけが通信を使う。
 2. Sub と BLDC のイメージを更新し、確定する。
 3. Power を安全停止してから更新する。Power は Sub と BLDC への給電を制御しているので、この順序を守る。
 4. Main の稼働していないスロットを更新する。Main は CAN 更新のゲートウェイなので最後にする。
 5. `fw_version_reader.py` で全対象の build ID と CRC32C を確認し、Main の稼働スロットが CONFIRMED であることを確認する。
-6. `control_server.service` を戻し、制御 API と必要な周辺機能が起動していることを確認する。
+6. 通常運用へ戻し、制御通信と必要な周辺機能を確認する。
 
 `all_can_updater.py` は Power→Sub→BLDC の順にすべての対象を bootloader へ移してから転送する。Power を先に bootloader へ移すと Sub と BLDC への給電が切れるので、この給電構成では全ノードの一括更新に使わない。更新中の通信エラーや、再起動後の不一致は成功として扱わない。対象と状態を確認してから再開する。
 
-## 実行例
+## CM4側の操作手順
 
-引数の形式を示す。実行前に、対象の機体番号、バス、node ID、イメージを照らし合わせる。
-
-```bash
-python3 cm4/firmware/sub_can_updater_v2.py sub.bin --port /dev/serial0 --node-can1 4
-python3 cm4/firmware/sub_can_updater_v2.py bldc.bin --port /dev/serial0 --node-can1 16 --node-can2 17
-python3 cm4/firmware/sub_can_updater_v2.py power.bin --port /dev/serial0 --node-can1 100
-python3 cm4/firmware/main_ab_updater.py --slot-a main_a.bin --slot-b main_b.bin --port /dev/serial0
-python3 cm4/firmware/fw_version_reader.py --port /dev/serial0 \
-  --main-a main_a.bin --main-b main_b.bin --sub sub.bin \
-  --bldc-can1 bldc.bin --bldc-can2 bldc.bin --power power.bin
-```
-
-各コマンドの引数の詳細は `--help` で確認する。
+ツールの導入、サービスの停止・復帰、実行コマンドは[Orion_CM4のFW更新手順](https://github.com/ibis-ssl/Orion_CM4/blob/main/doc/firmware_update.md)を参照する。この文書は更新順序・プロトコル・機器間の条件を定義する。
 
 ## 仕組み
 
@@ -83,4 +71,4 @@ Main の各スロットのイメージ先頭 `+0x400` には、`FWVR` magic と 
 2. Main は自身の両スロットを直接読み、[対象とノード](#対象とノード) に示す CAN ノードへ照会する。Power への照会は両バスに送る。
 3. 応答のないノードにだけ 40 ms 間隔で再照会し、250 ms 後に 6 対象の build ID と image CRC32C を 60 バイトの応答にまとめて CM4 へ返す。
 
-`fw_version_reader.py` は期待するバイナリを指定すると、実機の内容と比べた結果も表示する。Main のビルドスクリプトは、ビルドごとに Git hash と dirty 状態を `Script/Logs/Build/` に JSON で保存する（[Orion 概要](../stm/orion_overview.md#ビルドと書込み)）。
+`fw_version_reader.py` は期待するバイナリを指定すると、実機の内容と比べた結果も表示する。Main のビルドスクリプトは、ビルドごとに Git hash と dirty 状態を `Script/Logs/Build/` に JSON で保存する（[Orion 概要](../stm/orion_overview.md)）。
