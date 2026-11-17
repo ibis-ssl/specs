@@ -4,5 +4,6 @@
 
 - [制御モード5～8と4WS通信](control_modes.md)
 - [CM4共通状態パケット](cm4_status_packet.md)
+- [Atlasの2基板4ステアCAN割当](atlas_can.md)：共通エラー0x000、校正パラメーター約1秒周期送信、電源互換を含む未実装設計。[ID索引](atlas_can_ids.csv)。
 
 実験記録と過去の計画は各実装リポジトリの作業ログ・履歴に置く。

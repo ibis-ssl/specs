@@ -1,0 +1,20 @@
+status,id_first,id_last,scope,direction,purpose,period,notes
+confirmed_requirement,0x000,0x000,robot,all-to-all,error,event,existing power-compatible payload; no dedicated 0x270 status range
+confirmed_requirement,0x120,0x123,axis,main-to-steering,angle_target,TBD,g=2*board_id+axis
+candidate,0x130,0x133,axis,main-to-steering,manual_duty,TBD,optional
+confirmed_requirement,0x230,0x233,axis,steering-to-main,current,TBD,0x234 belongs to power
+candidate,0x250,0x253,axis,steering-to-main,angle_velocity,TBD,see atlas_can.md
+candidate,0x260,0x263,axis,steering-to-main,magnetic_ab,TBD,see atlas_can.md
+candidate,0x280,0x281,board,steering-to-main,board_diagnostics,TBD,no error relocation
+candidate,0x290,0x293,axis,steering-to-main,temperature,TBD,after temperature specification
+candidate,0x2E0,0x2E1,board,steering-to-main,configuration_response,event,not calibration request acknowledgement
+candidate,0x320,0x323,axis,main-to-steering,mode_stop_calibration_action,event,no calibration parameter read request
+candidate,0x330,0x333,axis,main-to-steering,current_duty_limits,event,settings do not start motion
+candidate,0x350,0x351,board,main-to-steering,heartbeat_board_control,TBD,heartbeat does not start motion
+candidate,0x3D0,0x3D1,board,host-to-steering,diagnostics,event,optional; no motion command
+candidate_id_confirmed_period,0x600,0x603,axis,steering-to-main,calibration_parameters,approximately_1s,unconditional whole snapshot; no request or ACK
+existing_reserved,0x480,0x4FF,robot,update,orion_update_data,event,do not allocate independent steering update IDs here
+existing_reserved,0x610,0x611,robot,update,orion_update_command_version,event,preserve existing contract
+existing_reserved,0x654,0x654,robot,update,orion_sub_update_reply,event,0x650+node4
+existing_reserved,0x660,0x661,robot,update,orion_bldc_update_reply,event,0x650+node16_or_17
+existing_reserved,0x6B4,0x6B4,robot,update,orion_power_update_reply,event,0x650+node100

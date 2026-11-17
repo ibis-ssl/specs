@@ -12,6 +12,7 @@ AI（crane）・CM4・Main・PC・シミュレータにまたがる通信契約�
 | [Main共通feedback](common/feedback_packet.md) | Main→CM4→PCの配置・CRC・同期・単位 |
 | [停止判定](common/safety_stop.md) | 各層の停止責務・タイムアウトと停止の意味 |
 | [Orion CAN](common/orion_can.md) | MainとCANノードの通信・ID・バス割当 |
+| [AtlasステアCAN設計](proposals/atlas_can.md) | 2基板4軸のID・共通エラー・校正周期送信。未実装、電源はOrion互換を維持 |
 | [MCU更新](common/firmware_update.md) | CM4・Main・CANノード間の更新契約と給電条件 |
 | [AI連携](pc/crane_integration.md) | 送受信側の適合条件と対応版の確認 |
 | [シミュレーション連携](pc/simulation.md) | crane・CM4相当・simulator-cli間の接続契約 |
@@ -25,6 +26,7 @@ Orionは4輪オムニ機体で、OrionMain（STM32G474）とのUART経路を現�
 | [Orion_CM4](https://github.com/ibis-ssl/Orion_CM4/blob/main/doc/overview.md) | CM4のプロセス・制御計算・カメラ・ビルド・設定・ホストツール・フリート管理 |
 | [G474_Orion_main](https://github.com/ibis-ssl/G474_Orion_main/blob/main/doc/overview.md) | Main内の制御演算・起動処理・ビルド・書込み・診断 |
 | [4WS_MainFW](https://github.com/ibis-ssl/4WS_MainFW/blob/main/doc/overview.md) | 4WS Mainの実装状況・CAN互換範囲・内部ドライバ・検証結果。SPIと機体制御は未実装 |
+| [4WS_G474_Controller](https://github.com/ibis-ssl/4WS_G474_Controller/blob/main/doc/overview.md) | DualDCMotorDriver_V4の2ステアFW・設定保持・診断・検証。Atlas新CAN設計への移行は未完了 |
 | [crane](https://github.com/ibis-ssl/crane) | AI内の送受信実装・ROS設定・起動 |
 | framework | simulator-cliの実装・物理モデル・起動方法は担当repoで管理 |
 
