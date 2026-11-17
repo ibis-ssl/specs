@@ -4,6 +4,6 @@
 
 - [制御モード5～8と4WS通信](control_modes.md)
 - [CM4共通状態パケット](cm4_status_packet.md)
-- [Atlasの2基板4ステアCAN割当](atlas_can.md)：共通エラー0x000、校正パラメーター約1秒周期送信、電源互換を含む未実装設計。[ID索引](atlas_can_ids.csv)。
+- [Atlasの責務・互換設計](atlas_can.md)：Main・2基板4軸ステア・電源の責務、安全、校正情報の提供。ID/周期/フレームは[MainFWの接続設計](https://github.com/ibis-ssl/4WS_MainFW/blob/main/doc/design/atlas_can.md)で管理する。
 
 実験記録と過去の計画は各実装リポジトリの作業ログ・履歴に置く。
